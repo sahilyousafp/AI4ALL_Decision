@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+    
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap-glyphicons.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.2.0/css/all.min.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/python-visualization/folium/folium/templates/leaflet.awesome.rotate.min.css"/>
+    
+            <meta name="viewport" content="width=device-width,
+                initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+            <style>
+                #map_3a516b8a94a49e036eba725c6389fd31 {
+                    position: relative;
+                    width: 100.0%;
+                    height: 100.0%;
+                    left: 0.0%;
+                    top: 0.0%;
+                }
+                .leaflet-container { font-size: 1rem; }
+            </style>
+
+            <style>html, body {
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+            }
+            </style>
+
+            <style>#map {
+                position:absolute;
+                top:0;
+                bottom:0;
+                right:0;
+                left:0;
+                }
+            </style>
+
+            <script>
+                L_NO_TOUCH = false;
+                L_DISABLE_3D = false;
+            </script>
+
+        
+    <script src="https://cdn.jsdelivr.net/gh/digidem/leaflet-side-by-side@2.0.0/leaflet-side-by-side.min.js"></script>
+</head>
+<body>
+    
+    
+<div style="position: fixed; top: 20px; left: 60px; z-index: 9999; background: rgba(255,255,255,0.9); padding: 8px 16px; border: 2px solid #333; border-radius: 6px; font-weight: 800; font-family: sans-serif; font-size: 16px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">1985</div>
+<div style="position: fixed; top: 20px; right: 20px; z-index: 9999; background: rgba(255,255,255,0.9); padding: 8px 16px; border: 2px solid #333; border-radius: 6px; font-weight: 800; font-family: sans-serif; font-size: 16px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">2022</div>
+
+<div style="position: fixed; bottom: 20px; left: 20px; z-index: 9999; background: rgba(255,255,255,0.95); padding: 12px 14px; border: 1px solid #999; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.15); font-family: sans-serif; max-width: 320px;">
+    <div style="font-weight: 700; margin-bottom: 8px;">GLC_FCS30D Legend (1985 vs 2022)</div>
+
+    <div style="margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #eee;">
+        <div style="font-size: 11px; font-weight: bold; margin-bottom: 5px; color: #333;">Render Opacity: <span id="opacity-val">1.0</span></div>
+        <input id="opacity-slider" type="range" min="0" max="1" step="0.05" value="1" style="width: 100%; cursor: pointer;">
+    </div>
+
+    <div style="max-height: 250px; overflow-y: auto; padding-right: 4px;">
+        <div style='display:flex; align-items:center; gap:8px; margin:4px 0;'><span style='width:14px; height:14px; background:#ffffff; border:1px solid #666; display:inline-block;'></span><span style='font-size:12px; line-height:1.2;'>Filled value (0)</span></div><div style='display:flex; align-items:center; gap:8px; margin:4px 0;'><span style='width:14px; height:14px; background:#ffff64; border:1px solid #666; display:inline-block;'></span><span style='font-size:12px; line-height:1.2;'>Rainfed cropland (10)</span></div><div style='display:flex; align-items:center; gap:8px; margin:4px 0;'><span style='width:14px; height:14px; background:#ffff64; border:1px solid #666; display:inline-block;'></span><span style='font-size:12px; line-height:1.2;'>Herbaceous cover cropland (11)</span></div><div style='display:flex; align-items:center; gap:8px; margin:4px 0;'><span style='width:14px; height:14px; background:#ffff00; border:1px solid #666; display:inline-block;'></span><span style='font-size:12px; line-height:1.2;'>Tree or shrub cover (Orchard) cropland (12)</span></div><div style='display:flex; align-items:center; gap:8px; margin:4px 0;'><span style='width:14px; height:14px; background:#aaf0f0; border:1px solid #666; display:inline-block;'></span><span style='font-size:12px; line-height:1.2;'>Irrigated cropland (20)</span></div><div style='display:flex; align-items:center; gap:8px; margin:4px 0;'><span style='width:14px; height:14px; background:#4c7300; border:1px solid #666; display:inline-block;'></span><span style='font-size:12px; line-height:1.2;'>Open evergreen broadleaved forest (51)</span></div><div style='display:flex; align-items:center; gap:8px; margin:4px 0;'><span style='width:14px; height:14px; background:#006400; border:1px solid #666; display:inline-block;'></span><span style='font-size:12px; line-height:1.2;'>Closed evergreen broadleaved forest (52)</span></div><div style='display:flex; align-items:center; gap:8px; margin:4px 0;'><span style='width:14px; height:14px; background:#aac800; border:1px solid #666; display:inline-block;'></span><span style='font-size:12px; line-height:1.2;'>Open deciduous broadleaved forest (61)</span></div><div style='display:flex; align-items:center; gap:8px; margin:4px 0;'><span style='width:14px; height:14px; background:#00a000; border:1px solid #666; display:inline-block;'></span><span style='font-size:12px; line-height:1.2;'>Closed deciduous broadleaved forest (62)</span></div><div style='display:flex; align-items:center; gap:8px; margin:4px 0;'><span style='width:14px; height:14px; background:#005000; border:1px solid #666; display:inline-block;'></span><span style='font-size:12px; line-height:1.2;'>Open evergreen needle-leaved forest (71)</span></div><div style='display:flex; align-items:center; gap:8px; margin:4px 0;'><span style='width:14px; height:14px; background:#003c00; border:1px solid #666; display:inline-block;'></span><span style='font-size:12px; line-height:1.2;'>Closed evergreen needle-leaved forest (72)</span></div><div style='display:flex; align-items:center; gap:8px; margin:4px 0;'><span style='width:14px; height:14px; background:#286400; border:1px solid #666; display:inline-block;'></span><span style='font-size:12px; line-height:1.2;'>Open deciduous needle-leaved forest (81)</span></div><div style='display:flex; align-items:center; gap:8px; margin:4px 0;'><span style='width:14px; height:14px; background:#285000; border:1px solid #666; display:inline-block;'></span><span style='font-size:12px; line-height:1.2;'>Closed deciduous needle-leaved forest (fc &gt;0.4) (82)</span></div><div style='display:flex; align-items:center; gap:8px; margin:4px 0;'><span style='width:14px; height:14px; background:#a0b432; border:1px solid #666; display:inline-block;'></span><span style='font-size:12px; line-height:1.2;'>Open mixed leaf forest (broadleaved and needle-leaved) (91)</span></div><div style='display:flex; align-items:center; gap:8px; margin:4px 0;'><span style='width:14px; height:14px; background:#788200; border:1px solid #666; display:inline-block;'></span><span style='font-size:12px; line-height:1.2;'>Closed mixed leaf forest (broadleaved and needle-leaved) (92)</span></div><div style='display:flex; align-items:center; gap:8px; margin:4px 0;'><span style='width:14px; height:14px; background:#966400; border:1px solid #666; display:inline-block;'></span><span style='font-size:12px; line-height:1.2;'>Shrubland (120)</span></div><div style='display:flex; align-items:center; gap:8px; margin:4px 0;'><span style='width:14px; height:14px; background:#964b00; border:1px solid #666; display:inline-block;'></span><span style='font-size:12px; line-height:1.2;'>Evergreen shrubland (121)</span></div><div style='display:flex; align-items:center; gap:8px; margin:4px 0;'><span style='width:14px; height:14px; background:#966400; border:1px solid #666; display:inline-block;'></span><span style='font-size:12px; line-height:1.2;'>Deciduous shrubland (122)</span></div><div style='display:flex; align-items:center; gap:8px; margin:4px 0;'><span style='width:14px; height:14px; background:#ffb432; border:1px solid #666; display:inline-block;'></span><span style='font-size:12px; line-height:1.2;'>Grassland (130)</span></div><div style='display:flex; align-items:center; gap:8px; margin:4px 0;'><span style='width:14px; height:14px; background:#ffdcd2; border:1px solid #666; display:inline-block;'></span><span style='font-size:12px; line-height:1.2;'>Lichens and mosses (140)</span></div><div style='display:flex; align-items:center; gap:8px; margin:4px 0;'><span style='width:14px; height:14px; background:#ffebaf; border:1px solid #666; display:inline-block;'></span><span style='font-size:12px; line-height:1.2;'>Sparse vegetation (150)</span></div><div style='display:flex; align-items:center; gap:8px; margin:4px 0;'><span style='width:14px; height:14px; background:#ffd278; border:1px solid #666; display:inline-block;'></span><span style='font-size:12px; line-height:1.2;'>Sparse shrubland (152)</span></div><div style='display:flex; align-items:center; gap:8px; margin:4px 0;'><span style='width:14px; height:14px; background:#ffebaf; border:1px solid #666; display:inline-block;'></span><span style='font-size:12px; line-height:1.2;'>Sparse herbaceous (153)</span></div><div style='display:flex; align-items:center; gap:8px; margin:4px 0;'><span style='width:14px; height:14px; background:#00a884; border:1px solid #666; display:inline-block;'></span><span style='font-size:12px; line-height:1.2;'>Swamp (181)</span></div><div style='display:flex; align-items:center; gap:8px; margin:4px 0;'><span style='width:14px; height:14px; background:#73ffdf; border:1px solid #666; display:inline-block;'></span><span style='font-size:12px; line-height:1.2;'>Marsh (182)</span></div><div style='display:flex; align-items:center; gap:8px; margin:4px 0;'><span style='width:14px; height:14px; background:#9ebbd7; border:1px solid #666; display:inline-block;'></span><span style='font-size:12px; line-height:1.2;'>Flooded flat (183)</span></div><div style='display:flex; align-items:center; gap:8px; margin:4px 0;'><span style='width:14px; height:14px; background:#828282; border:1px solid #666; display:inline-block;'></span><span style='font-size:12px; line-height:1.2;'>Saline (184)</span></div><div style='display:flex; align-items:center; gap:8px; margin:4px 0;'><span style='width:14px; height:14px; background:#f57ab6; border:1px solid #666; display:inline-block;'></span><span style='font-size:12px; line-height:1.2;'>Mangrove (185)</span></div><div style='display:flex; align-items:center; gap:8px; margin:4px 0;'><span style='width:14px; height:14px; background:#66cdab; border:1px solid #666; display:inline-block;'></span><span style='font-size:12px; line-height:1.2;'>Salt marsh (186)</span></div><div style='display:flex; align-items:center; gap:8px; margin:4px 0;'><span style='width:14px; height:14px; background:#444f89; border:1px solid #666; display:inline-block;'></span><span style='font-size:12px; line-height:1.2;'>Tidal flat (187)</span></div><div style='display:flex; align-items:center; gap:8px; margin:4px 0;'><span style='width:14px; height:14px; background:#c31400; border:1px solid #666; display:inline-block;'></span><span style='font-size:12px; line-height:1.2;'>Impervious surfaces (190)</span></div><div style='display:flex; align-items:center; gap:8px; margin:4px 0;'><span style='width:14px; height:14px; background:#fff5d7; border:1px solid #666; display:inline-block;'></span><span style='font-size:12px; line-height:1.2;'>Bare areas (200)</span></div><div style='display:flex; align-items:center; gap:8px; margin:4px 0;'><span style='width:14px; height:14px; background:#dcdcdc; border:1px solid #666; display:inline-block;'></span><span style='font-size:12px; line-height:1.2;'>Consolidated bare areas (201)</span></div><div style='display:flex; align-items:center; gap:8px; margin:4px 0;'><span style='width:14px; height:14px; background:#fff5d7; border:1px solid #666; display:inline-block;'></span><span style='font-size:12px; line-height:1.2;'>Unconsolidated bare areas (202)</span></div><div style='display:flex; align-items:center; gap:8px; margin:4px 0;'><span style='width:14px; height:14px; background:#0046c8; border:1px solid #666; display:inline-block;'></span><span style='font-size:12px; line-height:1.2;'>Water body (210)</span></div><div style='display:flex; align-items:center; gap:8px; margin:4px 0;'><span style='width:14px; height:14px; background:#ffffff; border:1px solid #666; display:inline-block;'></span><span style='font-size:12px; line-height:1.2;'>Permanent ice and snow (220)</span></div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        var slider = document.getElementById("opacity-slider");
+        var label = document.getElementById("opacity-val");
+        var renderLayers = ["tile_layer_4d429ee3e4984835fba669cdf7ed694e", "tile_layer_b9fb7b145367544d0a139201ce499fbb"];
+
+        function updateOpacity(val) {
+            label.innerText = parseFloat(val).toFixed(2);
+            renderLayers.forEach(function(id) {
+                if (window[id] && typeof window[id].setOpacity === "function") {
+                    window[id].setOpacity(val);
+                }
+            });
+        }
+
+        if (slider) {
+            slider.addEventListener("input", function() {
+                updateOpacity(this.value);
+            });
+        }
+    });
+</script>
+    
+            <div class="folium-map" id="map_3a516b8a94a49e036eba725c6389fd31" ></div>
+        
+</body>
+<script>
+    
+    
+            var map_3a516b8a94a49e036eba725c6389fd31 = L.map(
+                "map_3a516b8a94a49e036eba725c6389fd31",
+                {
+                    center: [41.2974, 2.0833],
+                    crs: L.CRS.EPSG3857,
+                    ...{
+  "zoom": 12,
+  "zoomControl": true,
+  "preferCanvas": false,
+}
+
+                }
+            );
+            L.control.scale().addTo(map_3a516b8a94a49e036eba725c6389fd31);
+
+            
+
+        
+    
+            var tile_layer_139a0e70aba503243f9dc7f620882963 = L.tileLayer(
+                "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+                {
+  "minZoom": 0,
+  "maxZoom": 20,
+  "maxNativeZoom": 20,
+  "noWrap": false,
+  "attribution": "\u0026copy; \u003ca href=\"https://www.openstreetmap.org/copyright\"\u003eOpenStreetMap\u003c/a\u003e contributors \u0026copy; \u003ca href=\"https://carto.com/attributions\"\u003eCARTO\u003c/a\u003e",
+  "subdomains": "abcd",
+  "detectRetina": false,
+  "tms": false,
+  "opacity": 1,
+}
+
+            );
+        
+    
+            tile_layer_139a0e70aba503243f9dc7f620882963.addTo(map_3a516b8a94a49e036eba725c6389fd31);
+        
+    
+            var tile_layer_4d429ee3e4984835fba669cdf7ed694e = L.tileLayer(
+                "https://titiler.xyz/cog/tiles/WebMercatorQuad/{z}/{x}/{y}.png?url=https%3A%2F%2Fs3.openlandmap.org%2Farco%2Flc_glc.fcs30d_c_30m_s_19850101_19851231_go_epsg.4326_v20231026.tif\u0026colormap=%7B%220%22%3A+%22%23ffffff%22%2C+%2210%22%3A+%22%23ffff64%22%2C+%2211%22%3A+%22%23ffff64%22%2C+%2212%22%3A+%22%23ffff00%22%2C+%2220%22%3A+%22%23aaf0f0%22%2C+%2251%22%3A+%22%234c7300%22%2C+%2252%22%3A+%22%23006400%22%2C+%2261%22%3A+%22%23aac800%22%2C+%2262%22%3A+%22%2300a000%22%2C+%2271%22%3A+%22%23005000%22%2C+%2272%22%3A+%22%23003c00%22%2C+%2281%22%3A+%22%23286400%22%2C+%2282%22%3A+%22%23285000%22%2C+%2291%22%3A+%22%23a0b432%22%2C+%2292%22%3A+%22%23788200%22%2C+%22120%22%3A+%22%23966400%22%2C+%22121%22%3A+%22%23964b00%22%2C+%22122%22%3A+%22%23966400%22%2C+%22130%22%3A+%22%23ffb432%22%2C+%22140%22%3A+%22%23ffdcd2%22%2C+%22150%22%3A+%22%23ffebaf%22%2C+%22152%22%3A+%22%23ffd278%22%2C+%22153%22%3A+%22%23ffebaf%22%2C+%22181%22%3A+%22%2300a884%22%2C+%22182%22%3A+%22%2373ffdf%22%2C+%22183%22%3A+%22%239ebbd7%22%2C+%22184%22%3A+%22%23828282%22%2C+%22185%22%3A+%22%23f57ab6%22%2C+%22186%22%3A+%22%2366cdab%22%2C+%22187%22%3A+%22%23444f89%22%2C+%22190%22%3A+%22%23c31400%22%2C+%22200%22%3A+%22%23fff5d7%22%2C+%22201%22%3A+%22%23dcdcdc%22%2C+%22202%22%3A+%22%23fff5d7%22%2C+%22210%22%3A+%22%230046c8%22%2C+%22220%22%3A+%22%23ffffff%22%7D",
+                {
+  "minZoom": 0,
+  "maxZoom": 24,
+  "maxNativeZoom": 24,
+  "noWrap": false,
+  "attribution": "OpenLandMap",
+  "subdomains": "abc",
+  "detectRetina": false,
+  "tms": false,
+  "opacity": 1,
+}
+
+            );
+        
+    
+            tile_layer_4d429ee3e4984835fba669cdf7ed694e.addTo(map_3a516b8a94a49e036eba725c6389fd31);
+        
+    
+            var tile_layer_b9fb7b145367544d0a139201ce499fbb = L.tileLayer(
+                "https://titiler.xyz/cog/tiles/WebMercatorQuad/{z}/{x}/{y}.png?url=https%3A%2F%2Fs3.openlandmap.org%2Farco%2Flc_glc.fcs30d_c_30m_s_20220101_20221231_go_epsg.4326_v20231026.tif\u0026colormap=%7B%220%22%3A+%22%23ffffff%22%2C+%2210%22%3A+%22%23ffff64%22%2C+%2211%22%3A+%22%23ffff64%22%2C+%2212%22%3A+%22%23ffff00%22%2C+%2220%22%3A+%22%23aaf0f0%22%2C+%2251%22%3A+%22%234c7300%22%2C+%2252%22%3A+%22%23006400%22%2C+%2261%22%3A+%22%23aac800%22%2C+%2262%22%3A+%22%2300a000%22%2C+%2271%22%3A+%22%23005000%22%2C+%2272%22%3A+%22%23003c00%22%2C+%2281%22%3A+%22%23286400%22%2C+%2282%22%3A+%22%23285000%22%2C+%2291%22%3A+%22%23a0b432%22%2C+%2292%22%3A+%22%23788200%22%2C+%22120%22%3A+%22%23966400%22%2C+%22121%22%3A+%22%23964b00%22%2C+%22122%22%3A+%22%23966400%22%2C+%22130%22%3A+%22%23ffb432%22%2C+%22140%22%3A+%22%23ffdcd2%22%2C+%22150%22%3A+%22%23ffebaf%22%2C+%22152%22%3A+%22%23ffd278%22%2C+%22153%22%3A+%22%23ffebaf%22%2C+%22181%22%3A+%22%2300a884%22%2C+%22182%22%3A+%22%2373ffdf%22%2C+%22183%22%3A+%22%239ebbd7%22%2C+%22184%22%3A+%22%23828282%22%2C+%22185%22%3A+%22%23f57ab6%22%2C+%22186%22%3A+%22%2366cdab%22%2C+%22187%22%3A+%22%23444f89%22%2C+%22190%22%3A+%22%23c31400%22%2C+%22200%22%3A+%22%23fff5d7%22%2C+%22201%22%3A+%22%23dcdcdc%22%2C+%22202%22%3A+%22%23fff5d7%22%2C+%22210%22%3A+%22%230046c8%22%2C+%22220%22%3A+%22%23ffffff%22%7D",
+                {
+  "minZoom": 0,
+  "maxZoom": 24,
+  "maxNativeZoom": 24,
+  "noWrap": false,
+  "attribution": "OpenLandMap",
+  "subdomains": "abc",
+  "detectRetina": false,
+  "tms": false,
+  "opacity": 1,
+}
+
+            );
+        
+    
+            tile_layer_b9fb7b145367544d0a139201ce499fbb.addTo(map_3a516b8a94a49e036eba725c6389fd31);
+        
+    
+            var side_by_side_layers_3c837dd59aa92fd12ec6c4d11b46567f = L.control.sideBySide(
+                tile_layer_4d429ee3e4984835fba669cdf7ed694e, tile_layer_b9fb7b145367544d0a139201ce499fbb
+            ).addTo(map_3a516b8a94a49e036eba725c6389fd31);
+        
+</script>
+</html>
