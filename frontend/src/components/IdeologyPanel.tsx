@@ -108,9 +108,9 @@ export default function IdeologyPanel() {
 
   if (loading) {
     return (
-      <div className="ideology-panel">
-        <div className="ideology-content">
-          <p className="ideology-text">Loading questionnaire...</p>
+      <div className="opinion-panel">
+        <div className="opinion-content">
+          <p className="opinion-text">Loading questionnaire...</p>
         </div>
       </div>
     )
@@ -118,9 +118,9 @@ export default function IdeologyPanel() {
 
   if (error) {
     return (
-      <div className="ideology-panel">
-        <div className="ideology-content">
-          <p className="ideology-text">Error: {error}</p>
+      <div className="opinion-panel">
+        <div className="opinion-content">
+          <p className="opinion-text">Error: {error}</p>
         </div>
       </div>
     )
@@ -132,26 +132,26 @@ export default function IdeologyPanel() {
 
   return (<>
 
-    <div className="ideology-panel">
+    <div className="opinion-panel">
       {!showResults ? (
-        <div className="ideology-content">
-          <div className="ideology-progress">
-            <div className="ideology-progress-bar" style={{ width: `${((currentQuestion) / questions.length) * 100}%` }} />
+        <div className="opinion-content">
+          <div className="opinion-progress">
+            <div className="opinion-progress-bar" style={{ width: `${((currentQuestion) / questions.length) * 100}%` }} />
           </div>
           
-          <div className="ideology-question-item">
-            <div className="ideology-question-number">
+          <div className="opinion-question-item">
+            <div className="opinion-question-number">
               Question {currentQuestion + 1} of {questions.length}
             </div>
-            <h3 className="ideology-question-text">
+            <h3 className="opinion-question-text">
               {questions[currentQuestion]?.text}
             </h3>
             
-            <div className="ideology-options">
+            <div className="opinion-options">
               {questions[currentQuestion]?.options.map((option, idx) => (
                 <button
                   key={idx}
-                  className={`ideology-option ${responses[currentQuestion] === idx ? 'selected' : ''}`}
+                  className={`opinion-option ${responses[currentQuestion] === idx ? 'selected' : ''}`}
                   onClick={() => handleSelectOption(idx)}
                 >
                   {option}
@@ -161,34 +161,34 @@ export default function IdeologyPanel() {
           </div>
         </div>
       ) : (
-        <div className="ideology-content">
-          <div className="ideology-results-header">
-            <h3 className="ideology-results-title">Your Score</h3>
+        <div className="opinion-content">
+          <div className="opinion-results-header">
+            <h3 className="opinion-results-title">Your Score</h3>
           </div>
           
-          <div className="ideology-results-container">
-            <div className="ideology-gauge-container">
-              <canvas ref={canvasRef} width={280} height={280} className="ideology-gauge-canvas" />
+          <div className="opinion-results-container">
+            <div className="opinion-gauge-container">
+              <canvas ref={canvasRef} width={280} height={280} className="opinion-gauge-canvas" />
             </div>
           </div>
           
 
           
           {interpretation && (
-            <div className="ideology-interpretation">
+            <div className="opinion-interpretation">
               <p>{interpretation.interpretation}</p>
             </div>
           )}
           
-          <button className="ideology-retake-btn" onClick={resetQuiz}>
+          <button className="opinion-retake-btn" onClick={resetQuiz}>
             Retake Quiz
           </button>
         </div>
       )}
     </div>
     {showResults && radarScores && (
-      <div className="panel ideology-score-floating">
-        <div className="ideology-score-panel">
+      <div className="panel opinion-score-floating">
+        <div className="opinion-score-panel">
           <div className="score-item environment">
             <span className="score-label">Environment</span>
             <span className="score-value">{radarScores.environment}</span>
@@ -212,19 +212,31 @@ export default function IdeologyPanel() {
 }
 
 function drawRadarChart(canvas: HTMLCanvasElement, scores: RadarScores) {
+  // High-quality rendering using devicePixelRatio scaling
+  const dpr = Math.max(1, window.devicePixelRatio || 1)
+  const width = canvas.clientWidth || 280
+  const height = canvas.clientHeight || 280
+  canvas.width = Math.round(width * dpr)
+  canvas.height = Math.round(height * dpr)
+  canvas.style.width = `${width}px`
+  canvas.style.height = `${height}px`
+
   const ctx = canvas.getContext('2d')
   if (!ctx) return
+  // Reset any transforms then scale for DPR
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+  ctx.clearRect(0, 0, width, height)
 
-  const centerX = 140
-  const centerY = 140
-  const maxRadius = 70
+  const centerX = width / 2
+  const centerY = height / 2
+  const maxRadius = Math.min(centerX, centerY) - 36
 
-  // Clear canvas
-  ctx.fillStyle = 'transparent'
-  ctx.fillRect(0, 0, canvas.width, canvas.height)
+  // Styling defaults
+  ctx.lineJoin = 'round'
+  ctx.lineCap = 'round'
 
   // Draw 5 concentric circles (grid)
-  ctx.strokeStyle = 'rgba(16, 18, 20, 0.1)'
+  ctx.strokeStyle = 'rgba(16, 18, 20, 0.08)'
   ctx.lineWidth = 1
   for (let i = 1; i <= 5; i++) {
     const gridRadius = (i * maxRadius) / 5
@@ -233,22 +245,22 @@ function drawRadarChart(canvas: HTMLCanvasElement, scores: RadarScores) {
     ctx.stroke()
   }
 
-  // Draw grid numbers
-  ctx.fillStyle = 'rgba(16, 18, 20, 0.4)'
-  ctx.font = '10px system-ui, -apple-system, sans-serif'
+  // Draw grid numbers (left)
+  ctx.fillStyle = 'rgba(16, 18, 20, 0.45)'
+  ctx.font = '11px system-ui, -apple-system, sans-serif'
   ctx.textAlign = 'right'
   for (let i = 1; i <= 5; i++) {
     const gridRadius = (i * maxRadius) / 5
     const labelValue = i * 20
-    ctx.fillText(String(labelValue), centerX - 8, centerY - gridRadius + 4)
+    ctx.fillText(String(labelValue), centerX - 10, centerY - gridRadius + 4)
   }
 
   // Axis data
   const axes = [
-    { name: 'Environment', angle: 0 },     // Top
-    { name: 'Comfort', angle: 90 },        // Right
-    { name: 'Economic', angle: 180 },      // Bottom
-    { name: 'Social', angle: 270 },        // Left
+    { name: 'Environment', angle: -90 }, // Up
+    { name: 'Comfort', angle: 0 },       // Right
+    { name: 'Economic', angle: 90 },     // Down
+    { name: 'Social', angle: 180 },      // Left
   ]
 
   const scoreValues = [
@@ -258,8 +270,8 @@ function drawRadarChart(canvas: HTMLCanvasElement, scores: RadarScores) {
     scores.social,
   ]
 
-  // Draw 4 axis lines
-  ctx.strokeStyle = 'rgba(16, 18, 20, 0.2)'
+  // Draw axis lines
+  ctx.strokeStyle = 'rgba(16, 18, 20, 0.14)'
   ctx.lineWidth = 1
   axes.forEach((axis) => {
     const angle = (axis.angle * Math.PI) / 180
@@ -272,9 +284,9 @@ function drawRadarChart(canvas: HTMLCanvasElement, scores: RadarScores) {
   })
 
   // Draw axis labels
-  ctx.fillStyle = 'rgba(16, 18, 20, 0.6)'
-  ctx.font = '11px system-ui, -apple-system, sans-serif'
-  axes.forEach((axis, index) => {
+  ctx.fillStyle = 'rgba(16, 18, 20, 0.75)'
+  ctx.font = '12px system-ui, -apple-system, sans-serif'
+  axes.forEach((axis) => {
     const angle = (axis.angle * Math.PI) / 180
     const labelRadius = maxRadius + 18
     const x = centerX + Math.cos(angle) * labelRadius
@@ -282,47 +294,62 @@ function drawRadarChart(canvas: HTMLCanvasElement, scores: RadarScores) {
 
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.fillText(axis.name, x, y)
+    // Draw subtle white background for legibility
+    const text = axis.name
+    const metrics = ctx.measureText(text)
+    const padX = 8
+    const padY = 6
+    ctx.fillStyle = 'rgba(255,255,255,0.9)'
+    ctx.fillRect(x - metrics.width / 2 - padX/2, y - 10, metrics.width + padX, 20)
+    ctx.fillStyle = 'rgba(16, 18, 20, 0.85)'
+    ctx.fillText(text, x, y)
   })
 
   // Calculate polygon points
   const polygonPoints: Array<{ x: number; y: number }> = []
   scoreValues.forEach((score, index) => {
-    const angle = (index * 90 * Math.PI) / 180
+    const angle = ((index * 360) / scoreValues.length - 90) * (Math.PI / 180)
     const radius = (score / 100) * maxRadius
     const x = centerX + radius * Math.cos(angle)
     const y = centerY + radius * Math.sin(angle)
     polygonPoints.push({ x, y })
   })
 
-  // Draw filled polygon
-  ctx.fillStyle = 'rgba(102, 126, 234, 0.2)'
-  ctx.strokeStyle = 'rgba(102, 126, 234, 0.8)'
+  // Draw filled polygon with subtle shadow
+  ctx.save()
+  ctx.shadowColor = 'rgba(0,0,0,0.08)'
+  ctx.shadowBlur = 12
+  ctx.fillStyle = 'rgba(102, 126, 234, 0.16)'
+  ctx.strokeStyle = 'rgba(102, 126, 234, 0.95)'
   ctx.lineWidth = 2
   ctx.beginPath()
-  ctx.moveTo(polygonPoints[0].x, polygonPoints[0].y)
-  for (let i = 1; i < polygonPoints.length; i++) {
-    ctx.lineTo(polygonPoints[i].x, polygonPoints[i].y)
-  }
+  polygonPoints.forEach((p, i) => {
+    if (i === 0) ctx.moveTo(p.x, p.y)
+    else ctx.lineTo(p.x, p.y)
+  })
   ctx.closePath()
   ctx.fill()
   ctx.stroke()
+  ctx.restore()
 
-  // Draw data point circles
-  ctx.fillStyle = 'rgba(102, 126, 234, 1)'
+  // Draw data point circles with white border
   polygonPoints.forEach((point) => {
     ctx.beginPath()
+    ctx.fillStyle = 'rgba(102, 126, 234, 1)'
     ctx.arc(point.x, point.y, 5, 0, Math.PI * 2)
     ctx.fill()
+    ctx.lineWidth = 2
+    ctx.strokeStyle = '#fff'
+    ctx.stroke()
   })
 
-  // Draw score labels at each node
-  ctx.fillStyle = 'rgba(16, 18, 20, 0.9)'
-  ctx.font = 'bold 12px system-ui, -apple-system, sans-serif'
+  // Draw score labels beside each node
+  ctx.fillStyle = 'rgba(16, 18, 20, 0.95)'
+  ctx.font = '600 12px system-ui, -apple-system, sans-serif'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   scoreValues.forEach((score, index) => {
     const point = polygonPoints[index]
-    ctx.fillText(String(Math.round(score)), point.x, point.y)
+    ctx.fillText(String(Math.round(score)), point.x, point.y - 14)
   })
 }
