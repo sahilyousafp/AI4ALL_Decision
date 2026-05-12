@@ -168,7 +168,7 @@ export default function IdeologyPanel() {
           
           <div className="opinion-results-container">
             <div className="opinion-gauge-container">
-              <canvas ref={canvasRef} width={280} height={280} className="opinion-gauge-canvas" />
+              {/* Chart moved to bottom-left panel */}
             </div>
           </div>
           
@@ -186,28 +186,12 @@ export default function IdeologyPanel() {
         </div>
       )}
     </div>
-    {showResults && radarScores && (
-      <div className="panel opinion-score-floating">
-        <div className="opinion-score-panel">
-          <div className="score-item environment">
-            <span className="score-label">Environment</span>
-            <span className="score-value">{radarScores.environment}</span>
-          </div>
-          <div className="score-item comfort">
-            <span className="score-label">Comfort</span>
-            <span className="score-value">{radarScores.comfort}</span>
-          </div>
-          <div className="score-item economic">
-            <span className="score-label">Economic</span>
-            <span className="score-value">{radarScores.economic}</span>
-          </div>
-          <div className="score-item social">
-            <span className="score-label">Social</span>
-            <span className="score-value">{radarScores.social}</span>
-          </div>
-        </div>
-      </div>
-    )}
+
+  {showResults && radarScores && (
+    <div className="opinion-chart-panel">
+      <canvas ref={canvasRef} width={320} height={320} className="opinion-gauge-canvas" />
+    </div>
+  )}
   </>)
 }
 

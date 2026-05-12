@@ -140,18 +140,29 @@ body,
   flex-direction: column;
 }
 
-/* Floating score panel positioned bottom-left */
-.ideology-score-floating {
+/* Chart panel positioned bottom-left */
+.opinion-chart-panel {
   position: fixed;
   left: 28px;
   bottom: 28px;
   z-index: 1350;
-  width: 240px;
+  width: 320px;
   padding: 12px;
   background: linear-gradient(145deg, var(--apple-panel), rgba(255, 255, 255, 0.6));
   border: 1px solid var(--apple-border);
   border-radius: 14px;
   box-shadow: var(--apple-shadow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 900px) {
+  .opinion-chart-panel {
+    left: 13px;
+    bottom: 14px;
+    width: 220px;
+  }
 }
 
 .legend-panel h2 {
