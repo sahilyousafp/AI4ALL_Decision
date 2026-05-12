@@ -38,21 +38,63 @@ export default function IdeologyPanel() {
   const [error, setError] = useState<string | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
+  const [userProfile, setUserProfile] = useState<any | null>(null)
+
   useEffect(() => {
-    fetch('/api/ideology/questions')
-      .then((res) => {
+    // Try to fetch a user profile to tailor questions; ignore failures
+    (async () => {
+      try {
+        const pRes = await fetch('/api/user/profile')
+        if (pRes.ok) {
+          const profile = await pRes.json()
+          setUserProfile(profile)
+        }
+      } catch (e) {
+        // no profile available; continue
+      }
+
+      try {
+        const query = userProfile ? `?profile=${encodeURIComponent(JSON.stringify(userProfile))}` : ''
+        const res = await fetch(`/api/ideology/questions${query}`)
         if (!res.ok) throw new Error('Failed to load questions')
-        return res.json()
-      })
-      .then((data: IdeologyQuestion[]) => {
-        setQuestions(data)
+        const data: IdeologyQuestion[] = await res.json()
+
+        // If we have a profile, attempt a simple reordering by inferred category
+        const reordered = reorderQuestionsByProfile(data, userProfile)
+        setQuestions(reordered)
         setLoading(false)
-      })
-      .catch((e: Error) => {
+      } catch (e: any) {
         setError(e.message)
         setLoading(false)
-      })
+      }
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  function categorizeQuestion(text: string) {
+    const t = text.toLowerCase()
+    if (t.includes('environment') || t.includes('climate') || t.includes('nature')) return 'environment'
+    if (t.includes('comfort') || t.includes('living') || t.includes('quality')) return 'comfort'
+    if (t.includes('economic') || t.includes('jobs') || t.includes('growth')) return 'economic'
+    if (t.includes('social') || t.includes('community') || t.includes('equity')) return 'social'
+    return 'other'
+  }
+
+  function reorderQuestionsByProfile(qs: IdeologyQuestion[], profile: any | null) {
+    if (!profile) return qs
+    const pref = profile.preferred_category || profile.preference || null
+    if (!pref) return qs
+    const preferred = String(pref).toLowerCase()
+
+    const matched: IdeologyQuestion[] = []
+    const others: IdeologyQuestion[] = []
+    for (const q of qs) {
+      const cat = categorizeQuestion(q.text)
+      if (cat === preferred) matched.push(q)
+      else others.push(q)
+    }
+    return [...matched, ...others]
+  }
 
   const handleSelectOption = (optionIndex: number) => {
     const newResponses = [...responses]
@@ -175,7 +217,7 @@ export default function IdeologyPanel() {
 
           
           {interpretation && (
-            <div className="opinion-interpretation">
+            <div className="opinion-interpretation final">
               <p>{interpretation.interpretation}</p>
             </div>
           )}

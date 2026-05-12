@@ -148,7 +148,8 @@ body,
   z-index: 1350;
   width: 320px;
   padding: 12px;
-  background: linear-gradient(145deg, var(--apple-panel), rgba(255, 255, 255, 0.6));
+  /* Match panel transparency to other panels */
+  background: linear-gradient(145deg, var(--apple-panel), rgba(255, 255, 255, 0.55));
   border: 1px solid var(--apple-border);
   border-radius: 14px;
   box-shadow: var(--apple-shadow);
@@ -507,6 +508,12 @@ body,
   font-size: 0.85rem;
   color: var(--apple-text);
   line-height: 1.4;
+}
+
+.opinion-interpretation.final p {
+  font-size: 1.06rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .opinion-retake-btn {
