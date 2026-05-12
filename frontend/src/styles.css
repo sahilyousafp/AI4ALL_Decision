@@ -175,6 +175,7 @@ body,
   gap: 6px;
   pointer-events: auto;
   cursor: pointer;
+  z-index: 1410; /* above panels and map controls */
 }
 
 .proposal-pie {

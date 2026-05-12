@@ -65,9 +65,11 @@ export default function App() {
   useEffect(() => {
     if (!config || !L || mapRef.current) return
 
+    // Increase default zoom by 20%, capped at 24
+    const initialZoom = Math.min(24, Math.round(config.zoom * 1.2))
     const map = L.map('map', {
       center: config.center,
-      zoom: config.zoom,
+      zoom: initialZoom,
       zoomControl: false,
       worldCopyJump: true,
     })
@@ -207,8 +209,10 @@ export default function App() {
             (() => {
               const proposals = [
                 { id: 'p1', left: 110, top: 220, pros: 60, cons: 40, preference: 0.9, title: 'Expansion A' },
-                { id: 'p2', left: 260, top: 120, pros: 30, cons: 70, preference: 0.4, title: 'Expansion B' },
-                { id: 'p3', left: 420, top: 260, pros: 50, cons: 50, preference: 0.6, title: 'Expansion C' },
+                { id: 'p2', left: 190, top: 120, pros: 30, cons: 70, preference: 0.4, title: 'Expansion B' },
+                { id: 'p3', left: 320, top: 200, pros: 50, cons: 50, preference: 0.6, title: 'Expansion C' },
+                { id: 'p4', left: 420, top: 90, pros: 80, cons: 20, preference: 0.95, title: 'Expansion D' },
+                { id: 'p5', left: 540, top: 220, pros: 20, cons: 80, preference: 0.3, title: 'Expansion E' },
               ]
               return (
                 <>
