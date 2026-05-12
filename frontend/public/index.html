@@ -1,0 +1,25 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>STAC Viewer</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.css" />
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.js"></script>
+    <script>
+    // Compatibility shim for older plugins expecting L.Mixin.Events
+    if (typeof L !== 'undefined') {
+        if (typeof L.Mixin === 'undefined') L.Mixin = {};
+        if (L.Mixin && typeof L.Mixin.Events === 'undefined' && L.Evented) {
+            L.Mixin.Events = L.Evented.prototype;
+        }
+    }
+    </script>
+    <script src="https://cdn.jsdelivr.net/gh/digidem/leaflet-side-by-side@2.0.0/leaflet-side-by-side.min.js"></script>
+    <script type="module" crossorigin src="/assets/index-1sKWH96k.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-BPqpRMJ8.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
