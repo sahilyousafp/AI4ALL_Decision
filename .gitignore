@@ -1,1 +1,20 @@
 .aider*
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Node
+node_modules/
+
+# Vite / build
+frontend/node_modules/.vite/
+dist/
+
+# Tooling
+.playwright-mcp/
+
+# Handoff notes (session-local)
+HANDOFF.md
