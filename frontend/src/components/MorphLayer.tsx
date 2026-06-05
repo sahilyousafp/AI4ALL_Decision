@@ -34,21 +34,21 @@ type Change = {
   image?: string
   bbox?: [number, number, number, number] // [W,S,E,N]
 }
-// Herons in flight (screen-anchored decorative life, varied so it doesn't look tiled).
-const BIRDS = [
-  { top: '13%', w: 140, dur: '16s', delay: '0s' },
-  { top: '25%', w: 96, dur: '22s', delay: '-9s' },
-  { top: '7%', w: 120, dur: '19s', delay: '-14s' },
-  { top: '34%', w: 80, dur: '25s', delay: '-4s' },
-  { top: '19%', w: 108, dur: '20s', delay: '-17s' },
-]
-// A few nature bits bobbing on the living (delta) side.
-const GROUND = [
-  { src: '/assets/decay/tree_green.png', left: '4%', bottom: '30%', w: 180, delay: '-0.6s' },
-  { src: '/assets/decay/tomato_fresh.png', left: '15%', bottom: '21%', w: 156, delay: '0s' },
-  { src: '/assets/decay/crane_alive.png', left: '31%', bottom: '24%', w: 132, delay: '-1.1s' },
-  { src: '/assets/decay/water_blue.png', left: '23%', bottom: '42%', w: 138, delay: '-1.7s' },
-]
+// A realistic distant flock — tiny gull silhouettes scattered over the delta sky,
+// each flapping + drifting slightly. Reads as real far-off birds, not sticker emoji.
+// Deterministic spread (no Math.random) across the upper-left delta region.
+const FLOCK = Array.from({ length: 26 }, (_, i) => {
+  const gx = (i * 53) % 100 // 0..100 pseudo-spread
+  const gy = (i * 31) % 100
+  return {
+    left: `${6 + (gx / 100) * 58}%`, // cluster over the delta, not the open sea
+    top: `${8 + (gy / 100) * 34}%`,
+    scale: 0.95 + ((i * 17) % 100) / 110, // 0.95..1.86
+    flapDur: `${0.7 + ((i * 13) % 60) / 100}s`, // 0.7..1.3s wingbeat
+    driftDur: `${9 + ((i * 7) % 80) / 10}s`, // 9..17s drift
+    delay: `-${(i * 0.37).toFixed(2)}s`,
+  }
+})
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
 const fmt = (n: number) => Math.round(n).toLocaleString('en-US')
@@ -132,9 +132,12 @@ export default function MorphLayer({ map, active }: Props) {
     if (afterRef.current) afterRef.current.setOpacity(frac)
     if (map && active) {
       const c = map.getContainer() as HTMLElement
-      c.style.filter = `saturate(${(1 - 0.55 * frac).toFixed(3)}) brightness(${(1 - 0.12 * frac).toFixed(
-        3,
-      )}) contrast(${(1 + 0.12 * frac).toFixed(3)})`
+      // warm golden vintage on the 1956 side (beautiful, not clinical) -> cold grey 2015
+      const sepia = (0.4 * (1 - frac)).toFixed(3)
+      const sat = (1 - 0.5 * frac).toFixed(3)
+      const bri = (1.02 - 0.14 * frac).toFixed(3)
+      const con = (1 + 0.12 * frac).toFixed(3)
+      c.style.filter = `sepia(${sepia}) saturate(${sat}) brightness(${bri}) contrast(${con})`
     }
     // keep the scar a translucent accent — it should glow over the airport, not bury it
     if (scarRef.current) scarRef.current.style.opacity = `${clamp((frac - 0.35) / 0.5, 0, 1) * 0.4}`
@@ -196,25 +199,32 @@ export default function MorphLayer({ map, active }: Props) {
       {/* glowing real-loss scar, geo-pinned (position set imperatively) */}
       {change?.image ? <img ref={scarRef} className="morph-scar" src={change.image} alt="" style={{ opacity: 0 }} /> : null}
 
-      {/* living delta: herons in flight + a few nature bits, fading as concrete wins */}
-      <div className="morph-life" style={{ opacity: lifeOpacity }}>
-        {BIRDS.map((b, i) => (
-          <img
+      {/* living delta: a realistic distant flock, scattering away as concrete wins */}
+      <div className="morph-flock" style={{ opacity: lifeOpacity }}>
+        {FLOCK.map((b, i) => (
+          <span
             key={i}
-            className="morph-bird"
-            src="/assets/decay/crane_fly.png"
-            alt=""
-            style={{ top: b.top, width: b.w, animationDuration: b.dur, animationDelay: b.delay }}
-          />
-        ))}
-        {GROUND.map((g, i) => (
-          <img
-            key={i}
-            className="morph-nature"
-            src={g.src}
-            alt=""
-            style={{ left: g.left, bottom: g.bottom, width: g.w, animationDelay: g.delay }}
-          />
+            className="gull"
+            style={{
+              left: b.left,
+              top: b.top,
+              transform: `scale(${b.scale})`,
+              animationDuration: b.driftDur,
+              animationDelay: b.delay,
+            }}
+          >
+            <svg viewBox="0 0 24 10" width="34" height="14" aria-hidden="true">
+              <path
+                className="gull-wing"
+                d="M1 7 Q6 1 12 6 Q18 1 23 7"
+                fill="none"
+                stroke="rgba(22,26,32,0.92)"
+                strokeWidth="1.9"
+                strokeLinecap="round"
+                style={{ animationDuration: b.flapDur, animationDelay: b.delay }}
+              />
+            </svg>
+          </span>
         ))}
       </div>
 

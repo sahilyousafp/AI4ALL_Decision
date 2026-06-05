@@ -246,65 +246,59 @@ body,
   }
 }
 
-/* living delta: flying herons + bobbing nature, fading out as concrete wins */
-.morph-life {
+/* living delta: a realistic distant flock, drifting + flapping, fading as concrete wins */
+.morph-flock {
   position: absolute;
   inset: 0;
   z-index: 1;
   pointer-events: none;
   transition: opacity 0.18s linear;
 }
-.morph-bird {
+.gull {
   position: absolute;
-  left: 0;
-  height: auto;
-  /* dark shadow for depth + faint light halo so grey herons read on grey aerial */
-  filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.45)) drop-shadow(0 0 2px rgba(255, 255, 255, 0.65));
-  animation-name: bird-fly;
-  animation-timing-function: linear;
+  display: block;
+  /* white halo so the dark silhouette reads on the busy aerial */
+  filter: drop-shadow(0 0 1.6px rgba(255, 255, 255, 0.95)) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5));
+  animation-name: gull-drift;
+  animation-timing-function: ease-in-out;
   animation-iteration-count: infinite;
   will-change: transform;
 }
-@keyframes bird-fly {
+/* whole-bird slow wander (combined with the inline scale via the wrapper) */
+@keyframes gull-drift {
   0% {
-    transform: translate(-14vw, 0) scale(1);
-    opacity: 0;
-  }
-  8% {
-    opacity: 1;
+    margin-left: 0;
+    margin-top: 0;
   }
   50% {
-    transform: translate(52vw, -5vh) scale(1.04);
-  }
-  92% {
-    opacity: 1;
+    margin-left: 26px;
+    margin-top: -14px;
   }
   100% {
-    transform: translate(116vw, -3vh) scale(1);
-    opacity: 0;
+    margin-left: 0;
+    margin-top: 0;
   }
 }
-.morph-nature {
-  position: absolute;
-  height: auto;
-  filter: drop-shadow(0 7px 9px rgba(0, 0, 0, 0.45)) drop-shadow(0 0 2px rgba(255, 255, 255, 0.6));
-  animation: nature-bob 3.4s ease-in-out infinite;
-  transform-origin: 50% 100%;
+/* wing flap — squashing the gull vertically reads as wingbeats at a distance */
+.gull-wing {
+  transform-origin: 50% 50%;
+  transform-box: fill-box;
+  animation-name: gull-flap;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
 }
-@keyframes nature-bob {
+@keyframes gull-flap {
   0%,
   100% {
-    transform: translateY(0) rotate(-1deg);
+    transform: scaleY(1);
   }
   50% {
-    transform: translateY(-7px) rotate(1.5deg);
+    transform: scaleY(0.5);
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .morph-bird {
-    animation: none !important;
-  }
-  .morph-nature {
+  .gull,
+  .gull-wing {
     animation: none !important;
   }
 }
