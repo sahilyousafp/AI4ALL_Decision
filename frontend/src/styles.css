@@ -303,6 +303,87 @@ body,
   }
 }
 
+/* draggable cinematic magnifier — Higgsfield clip plays inside the glass */
+.loupe-root {
+  position: fixed;
+  inset: 0;
+  z-index: 1150;
+  pointer-events: none;
+}
+.loupe {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  overflow: hidden;
+  pointer-events: auto;
+  cursor: grab;
+  border: 2px solid rgba(255, 255, 255, 0.55);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.18), 0 16px 44px rgba(0, 0, 0, 0.55),
+    inset 0 0 34px rgba(0, 0, 0, 0.5);
+  touch-action: none;
+  will-change: left, top;
+}
+.loupe:active {
+  cursor: grabbing;
+}
+.loupe-video {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  min-width: 132%;
+  min-height: 132%;
+  width: auto;
+  height: auto;
+  transform: translate(-50%, -50%) scale(1.18);
+  object-fit: cover;
+}
+.loupe-glass {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle at 36% 28%, rgba(255, 255, 255, 0.3), transparent 42%),
+    radial-gradient(circle at 50% 50%, transparent 58%, rgba(0, 0, 0, 0.42) 100%);
+}
+.loupe-label {
+  position: absolute;
+  bottom: 12px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  padding: 0 14px;
+  font-size: 0.62rem;
+  font-weight: 560;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.92);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+  pointer-events: none;
+}
+.loupe-hint {
+  position: absolute;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(10, 12, 14, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #fff;
+  font-size: 0.76rem;
+  font-weight: 540;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: loupe-hint-pulse 1.8s ease-in-out infinite;
+}
+@keyframes loupe-hint-pulse {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 /* vignette that closes in as the delta dies (opacity set inline by frac) */
 .morph-fx {
   position: absolute;

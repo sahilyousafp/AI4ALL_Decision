@@ -4,6 +4,7 @@ import 'leaflet/dist/leaflet.css'
 import IdeologyPanel from './components/IdeologyPanel'
 import LossLayer from './components/LossLayer'
 import MorphLayer from './components/MorphLayer'
+import LoupeLens from './components/LoupeLens'
 
 const L = (window as any).L
 
@@ -227,6 +228,7 @@ export default function App() {
       <div id="map" className="map-container" />
       {uiRoot ? createPortal(<LossLayer map={mapInstance} hidden={storyMode} />, uiRoot) : <LossLayer map={mapInstance} hidden={storyMode} />}
       {uiRoot ? createPortal(<MorphLayer map={mapInstance} active={storyMode} />, uiRoot) : <MorphLayer map={mapInstance} active={storyMode} />}
+      {uiRoot ? createPortal(<LoupeLens active={storyMode} />, uiRoot) : <LoupeLens active={storyMode} />}
       {uiRoot ? createPortal(panels(), uiRoot) : panels()}
       {!storyMode && (uiRoot ? createPortal(<IdeologyPanel />, uiRoot) : <IdeologyPanel />)}
 
