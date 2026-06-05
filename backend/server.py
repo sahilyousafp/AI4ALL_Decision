@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import base64
+import io
 import json
+import math
+import os
 import re
 from functools import lru_cache
 from pathlib import Path
@@ -17,6 +21,12 @@ from pydantic import BaseModel
 
 from ideology_agent_service import get_ideology_service, IdeologyQuestion, ScoringResult, IdeologyInterpretation
 
+# Faster remote COG access for the change-detection endpoint.
+os.environ.setdefault("GDAL_DISABLE_READDIR_ON_OPEN", "EMPTY_DIR")
+os.environ.setdefault("GDAL_HTTP_MULTIPLEX", "YES")
+os.environ.setdefault("VSI_CACHE", "TRUE")
+os.environ.setdefault("CPL_VSIL_CURL_ALLOWED_EXTENSIONS", ".tif,.TIF")
+
 app = FastAPI(title="AI4ALL Land Cover Viewer")
 
 COLLECTION_URL = "https://s3.eu-central-1.wasabisys.com/stac/openlandmap/lc_glc.fcs30d/collection.json"
@@ -25,6 +35,19 @@ YEAR_LEFT = 1985
 YEAR_RIGHT = 2022
 MAP_CENTER = [41.2974, 2.0833]
 DEFAULT_ZOOM = 12
+
+# Delta bounding box for change detection: (west, south, east, north).
+# Covers El Prat airport + the Llobregat delta wetlands and farmland.
+CHANGE_BBOX = (1.980, 41.250, 2.220, 41.360)
+
+# GLC_FCS30D class groupings.
+CROP = {10, 11, 12, 20}
+FOREST = {51, 52, 61, 62, 71, 72, 81, 82, 91, 92}
+SHRUB_GRASS = {120, 121, 122, 130, 140, 150, 151, 152, 153}
+WETLAND = {180, 181, 182, 183, 184, 185, 186, 187}
+WATER = {210}
+NATURE = CROP | FOREST | SHRUB_GRASS | WETLAND | WATER
+BUILT = {190}  # impervious surfaces
 
 
 class LegendItem(BaseModel):
@@ -133,6 +156,101 @@ def _build_map_config() -> MapConfig:
         zoom=DEFAULT_ZOOM,
         source="OpenLandMap / TiTiler / STAC",
     )
+
+
+@lru_cache(maxsize=1)
+def _get_change_assets() -> tuple[str, str]:
+    """COG hrefs for the two years used by change detection."""
+    items_by_year = _load_items_by_year()
+    left = items_by_year.get(YEAR_LEFT, {}).get("assets", {}).get(ASSET_KEY, {}).get("href")
+    right = items_by_year.get(YEAR_RIGHT, {}).get("assets", {}).get(ASSET_KEY, {}).get("href")
+    if not left or not right:
+        raise RuntimeError("Land-cover COG asset missing for change detection.")
+    return left, right
+
+
+def _read_classes(href: str, bbox: tuple[float, float, float, float], width: int, height: int):
+    """Read a COG window over bbox (WGS84) as a 2D array of class codes."""
+    from rio_tiler.io import Reader
+
+    with Reader(href) as reader:
+        img = reader.part(
+            bbox,
+            bounds_crs="epsg:4326",
+            dst_crs="epsg:4326",
+            width=width,
+            height=height,
+            resampling_method="nearest",
+        )
+    return img.data[0]
+
+
+@lru_cache(maxsize=1)
+def _compute_change() -> dict[str, Any]:
+    """Where 1985 natural land cover became 2022 built-up, with hectares lost."""
+    import numpy as np
+    from PIL import Image
+
+    west, south, east, north = CHANGE_BBOX
+    mean_lat = (south + north) / 2.0
+    m_per_deg_lat = 111_320.0
+    m_per_deg_lng = 111_320.0 * math.cos(math.radians(mean_lat))
+    width_m = (east - west) * m_per_deg_lng
+    height_m = (north - south) * m_per_deg_lat
+    # ~40 m sampling resolution.
+    cols = max(64, min(900, int(round(width_m / 40.0))))
+    rows = max(64, min(900, int(round(height_m / 40.0))))
+
+    left_href, right_href = _get_change_assets()
+    a85 = _read_classes(left_href, CHANGE_BBOX, cols, rows)
+    a22 = _read_classes(right_href, CHANGE_BBOX, cols, rows)
+
+    nature_85 = np.isin(a85, list(NATURE))
+    built_22 = np.isin(a22, list(BUILT))
+    loss = nature_85 & built_22
+
+    cell_area_ha = (width_m / cols) * (height_m / rows) / 10_000.0
+
+    def _ha_where(mask) -> float:
+        return round(float(np.count_nonzero(loss & mask)) * cell_area_ha, 1)
+
+    breakdown = {
+        "cropland": _ha_where(np.isin(a85, list(CROP))),
+        "wetland": _ha_where(np.isin(a85, list(WETLAND))),
+        "forest": _ha_where(np.isin(a85, list(FOREST))),
+        "shrub_grass": _ha_where(np.isin(a85, list(SHRUB_GRASS))),
+        "water": _ha_where(np.isin(a85, list(WATER))),
+    }
+    total_ha = round(float(np.count_nonzero(loss)) * cell_area_ha, 1)
+
+    # Render the loss mask as a translucent red RGBA PNG (transparent elsewhere).
+    rgba = np.zeros((rows, cols, 4), dtype=np.uint8)
+    # Vivid magenta so newly-lost land stands out from the GLC palette
+    # (which already paints built-up as red).
+    rgba[loss] = (255, 0, 200, 205)
+    buf = io.BytesIO()
+    Image.fromarray(rgba, "RGBA").save(buf, format="PNG")
+    data_url = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
+
+    return {
+        "bbox": [west, south, east, north],
+        "image": data_url,
+        "hectares_lost": total_ha,
+        "breakdown": breakdown,
+        "resolution_m": round(width_m / cols),
+        "year_from": YEAR_LEFT,
+        "year_to": YEAR_RIGHT,
+        "source": "GLC_FCS30D 30 m land cover (OpenLandMap); nature→impervious change",
+    }
+
+
+@app.get("/api/change")
+def get_change() -> JSONResponse:
+    """Real 1985->2022 ecosystem-to-built-up change over the delta."""
+    try:
+        return JSONResponse(_compute_change())
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Change detection failed: {exc}") from exc
 
 
 @app.get("/health")

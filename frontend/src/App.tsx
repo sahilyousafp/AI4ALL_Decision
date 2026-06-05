@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import 'leaflet/dist/leaflet.css'
 import IdeologyPanel from './components/IdeologyPanel'
+import LossLayer from './components/LossLayer'
+import MorphLayer from './components/MorphLayer'
 
 const L = (window as any).L
 
@@ -37,6 +39,8 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [opacity, setOpacity] = useState(1)
+  const [storyMode, setStoryMode] = useState(false)
+  const [mapInstance, setMapInstance] = useState<any>(null)
   const [hoverLegend, setHoverLegend] = useState<{ item: LegendItem; x: number; y: number } | null>(null)
 
   useEffect(() => {
@@ -96,8 +100,10 @@ export default function App() {
     leftLayerRef.current = leftLayer
     rightLayerRef.current = rightLayer
     compareControlRef.current = L.control.sideBySide(leftLayer, rightLayer).addTo(map)
+    setMapInstance(map)
 
     return () => {
+      setMapInstance(null)
       if (compareControlRef.current) {
         compareControlRef.current.remove()
         compareControlRef.current = null
@@ -112,9 +118,11 @@ export default function App() {
   }, [config, opacity])
 
   useEffect(() => {
-    if (leftLayerRef.current) leftLayerRef.current.setOpacity(opacity)
-    if (rightLayerRef.current) rightLayerRef.current.setOpacity(opacity)
-  }, [opacity])
+    // In Story mode the real IGN aerial imagery replaces the raw GLC entirely.
+    const eff = storyMode ? 0 : opacity
+    if (leftLayerRef.current) leftLayerRef.current.setOpacity(eff)
+    if (rightLayerRef.current) rightLayerRef.current.setOpacity(eff)
+  }, [opacity, storyMode])
 
   const legendTitle = useMemo(() => {
     if (!config) return 'Legend'
@@ -149,7 +157,24 @@ export default function App() {
 
     return (
       <>
-        <div className="panel shell">
+        <div className="mode-switch" role="group" aria-label="Map view mode">
+          <button
+            type="button"
+            className={`mode-btn ${storyMode ? '' : 'active'}`}
+            onClick={() => setStoryMode(false)}
+          >
+            🛰 Data
+          </button>
+          <button
+            type="button"
+            className={`mode-btn ${storyMode ? 'active' : ''}`}
+            onClick={() => setStoryMode(true)}
+          >
+            🌱 Story
+          </button>
+        </div>
+
+        <div className="panel shell" style={storyMode ? { display: 'none' } : undefined}>
           <p className="eyebrow">AI4ALL Participatory Motivation</p>
           <h1 className="title">{config.dataset_label}</h1>
           <p className="subtitle">Drag the vertical slider to compare historical land-cover classes side by side.</p>
@@ -169,10 +194,10 @@ export default function App() {
           <p className="source">Source: {config.source}</p>
         </div>
 
-        <div className="year-chip left">{config.left.year}</div>
-        <div className="year-chip right">{config.right.year}</div>
+        {!storyMode && <div className="year-chip left">{config.left.year}</div>}
+        {!storyMode && <div className="year-chip right">{config.right.year}</div>}
 
-        <div className="panel legend-panel">
+        <div className="panel legend-panel" style={storyMode ? { display: 'none' } : undefined}>
           <h2>{legendTitle}</h2>
           <p className="legend-help">Hover any color to preview the class information.</p>
           <div className="legend-list">
@@ -200,8 +225,10 @@ export default function App() {
   return (
     <div className="app-root">
       <div id="map" className="map-container" />
+      {uiRoot ? createPortal(<LossLayer map={mapInstance} hidden={storyMode} />, uiRoot) : <LossLayer map={mapInstance} hidden={storyMode} />}
+      {uiRoot ? createPortal(<MorphLayer map={mapInstance} active={storyMode} />, uiRoot) : <MorphLayer map={mapInstance} active={storyMode} />}
       {uiRoot ? createPortal(panels(), uiRoot) : panels()}
-      {uiRoot ? createPortal(<IdeologyPanel />, uiRoot) : <IdeologyPanel />}
+      {!storyMode && (uiRoot ? createPortal(<IdeologyPanel />, uiRoot) : <IdeologyPanel />)}
 
       {uiRoot && hoverLegend
         ? createPortal(
