@@ -46,8 +46,39 @@ FOREST = {51, 52, 61, 62, 71, 72, 81, 82, 91, 92}
 SHRUB_GRASS = {120, 121, 122, 130, 140, 150, 151, 152, 153}
 WETLAND = {180, 181, 182, 183, 184, 185, 186, 187}
 WATER = {210}
+BARE = {200, 201, 202}
+ICE = {220}
 NATURE = CROP | FOREST | SHRUB_GRASS | WETLAND | WATER
 BUILT = {190}  # impervious surfaces
+
+# Simplified, readable land-cover groups: collapse the ~25 fine GLC_FCS30D classes
+# into a handful of intuitive categories with a clean, distinct palette. Order =
+# legend order. Each group renders as ONE colour, so the map reads at a glance.
+LANDCOVER_GROUPS: list[tuple[str, str, str, set[int]]] = [
+    # (id, label, color, class codes)
+    ("built", "Built-up", "#6f757e", BUILT),       # grey concrete
+    ("cropland", "Cropland", "#e3c46b", CROP),     # wheat
+    ("forest", "Forest", "#2e7d46", FOREST),       # deep green
+    ("grass", "Grass & shrub", "#9fcf6a", SHRUB_GRASS),  # sage
+    ("wetland", "Wetland", "#34a0a4", WETLAND),    # teal
+    ("water", "Water", "#3c7fd0", WATER),          # blue
+    ("bare", "Bare ground", "#dccfb6", BARE),      # beige
+    ("ice", "Snow & ice", "#eef3f7", ICE),         # near-white
+]
+
+
+def _simplified_colormap() -> dict[str, str]:
+    """{class_code: group_hex} for TiTiler — every fine class maps to its group
+    colour, so the rendered tiles show only the handful of group colours."""
+    cmap: dict[str, str] = {}
+    for _id, _label, color, codes in LANDCOVER_GROUPS:
+        for code in codes:
+            cmap[str(code)] = color
+    return cmap
+
+
+def _simplified_legend() -> list["LegendItem"]:
+    return [LegendItem(quantity=g_id, label=label, color=color) for g_id, label, color, _ in LANDCOVER_GROUPS]
 
 
 class LegendItem(BaseModel):
@@ -117,8 +148,7 @@ def _parse_sld(sld_url: str) -> list[LegendItem]:
     return entries
 
 
-def _build_tile_url(asset_href: str, legend: list[LegendItem]) -> str:
-    colormap = {entry.quantity: entry.color for entry in legend}
+def _build_tile_url(asset_href: str, colormap: dict[str, str]) -> str:
     url = f"https://titiler.xyz/cog/tiles/WebMercatorQuad/{{z}}/{{x}}/{{y}}.png?url={quote_plus(asset_href)}"
     if colormap:
         encoded_colormap = quote_plus(json.dumps(colormap, separators=(",", ":")))
@@ -141,20 +171,18 @@ def _build_map_config() -> MapConfig:
     if not left_asset or not right_asset:
         raise RuntimeError(f"Asset '{ASSET_KEY}' missing in selected years.")
 
-    sld_url = left_item.get("assets", {}).get("sld", {}).get("href")
-    if not sld_url:
-        raise RuntimeError("SLD legend asset was not found.")
-
-    legend = _parse_sld(sld_url)
+    # Render with a simplified group palette (clean, ~8 colours) instead of the
+    # full ~25-class GLC_FCS30D rainbow.
+    colormap = _simplified_colormap()
     return MapConfig(
         dataset_id="glc_fcs30d",
-        dataset_label=f"Global Land Cover (GLC_FCS30D) {YEAR_LEFT} vs {YEAR_RIGHT}",
-        left=LayerConfig(year=YEAR_LEFT, tiles=_build_tile_url(left_asset, legend)),
-        right=LayerConfig(year=YEAR_RIGHT, tiles=_build_tile_url(right_asset, legend)),
-        legend=legend,
+        dataset_label=f"Land cover, {YEAR_LEFT} vs {YEAR_RIGHT} — El Prat / Llobregat delta",
+        left=LayerConfig(year=YEAR_LEFT, tiles=_build_tile_url(left_asset, colormap)),
+        right=LayerConfig(year=YEAR_RIGHT, tiles=_build_tile_url(right_asset, colormap)),
+        legend=_simplified_legend(),
         center=MAP_CENTER,
         zoom=DEFAULT_ZOOM,
-        source="OpenLandMap / TiTiler / STAC",
+        source="GLC_FCS30D 30 m land cover (OpenLandMap), grouped",
     )
 
 

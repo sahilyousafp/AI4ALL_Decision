@@ -200,7 +200,7 @@ export default function App() {
 
         <div className="panel legend-panel" style={storyMode ? { display: 'none' } : undefined}>
           <h2>{legendTitle}</h2>
-          <p className="legend-help">Hover any color to preview the class information.</p>
+          <p className="legend-help">Simplified into a few clear land types.</p>
           <div className="legend-list">
             {config.legend.map((item) => (
               <button
@@ -212,9 +212,7 @@ export default function App() {
                 onMouseLeave={() => setHoverLegend(null)}
               >
                 <span className="legend-swatch" style={{ backgroundColor: item.color }} />
-                <span className="legend-text">
-                  <strong>{item.quantity}</strong> - {item.label}
-                </span>
+                <span className="legend-text">{item.label}</span>
               </button>
             ))}
           </div>
@@ -237,8 +235,7 @@ export default function App() {
             <div className="legend-popup" style={{ left: hoverLegend.x, top: hoverLegend.y }}>
               <div className="popup-swatch" style={{ backgroundColor: hoverLegend.item.color }} />
               <div className="popup-body">
-                <div className="popup-title">Class {hoverLegend.item.quantity}</div>
-                <div className="popup-label">{hoverLegend.item.label}</div>
+                <div className="popup-title">{hoverLegend.item.label}</div>
               </div>
             </div>,
             uiRoot,
