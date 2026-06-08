@@ -199,6 +199,90 @@ body,
   box-shadow: 0 6px 16px rgba(18, 30, 52, 0.22);
 }
 
+/* cinematic real-aerial frames: feather the rectangle edges so the framed delta
+   melts into the surrounding live satellite instead of showing a hard seam */
+.cine-frame {
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 7%, #000 93%, transparent 100%),
+    linear-gradient(to bottom, transparent 0, #000 7%, #000 93%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(to right, transparent 0, #000 7%, #000 93%, transparent 100%),
+    linear-gradient(to bottom, transparent 0, #000 7%, #000 93%, transparent 100%);
+  mask-composite: intersect;
+}
+
+/* ---- Dataset switcher (Data mode): land cover / surface temp / air quality ---- */
+.dataset-switch {
+  position: fixed;
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1390;
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(16px) saturate(135%);
+  -webkit-backdrop-filter: blur(16px) saturate(135%);
+  border: 1px solid var(--apple-border);
+  box-shadow: var(--apple-shadow);
+}
+.ds-btn {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 14px;
+  border-radius: 12px;
+  text-align: center;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+.ds-btn .ds-label {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--apple-text);
+}
+.ds-btn .ds-sub {
+  font-size: 0.62rem;
+  font-weight: 500;
+  color: var(--apple-muted);
+  letter-spacing: 0.01em;
+}
+.ds-btn:hover {
+  background: rgba(16, 18, 20, 0.06);
+}
+.ds-btn.active {
+  background: #101214;
+}
+.ds-btn.active .ds-label {
+  color: #fff;
+}
+.ds-btn.active .ds-sub {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* smooth the coarse 1-2 km temperature/pollution rasters into a legible field
+   (a whole tile layer shares one container, so the blur is seamless across tiles) */
+.smooth-raster {
+  filter: blur(6px);
+}
+
+/* continuous colour-ramp legend for temperature / pollution */
+.gradient-bar {
+  height: 14px;
+  border-radius: 7px;
+  margin: 4px 0 6px;
+  border: 1px solid var(--apple-border);
+}
+.gradient-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.74rem;
+  font-weight: 560;
+  color: var(--apple-muted);
+}
+
 /* ---- Story mode: real IGN aerial morph, blended on the live map ---- */
 /* transparent overlay — the Leaflet map shows through and IS the visual */
 .morph-ui {

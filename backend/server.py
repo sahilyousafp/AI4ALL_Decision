@@ -90,6 +90,15 @@ class LegendItem(BaseModel):
 class LayerConfig(BaseModel):
     year: int
     tiles: str
+    label: str | None = None
+
+
+class Gradient(BaseModel):
+    """Continuous colour ramp for non-class datasets (temperature, pollution)."""
+    colors: list[str]
+    min_label: str
+    max_label: str
+    unit: str
 
 
 class MapConfig(BaseModel):
@@ -98,6 +107,8 @@ class MapConfig(BaseModel):
     left: LayerConfig
     right: LayerConfig
     legend: list[LegendItem]
+    legend_kind: str = "classes"  # "classes" | "gradient"
+    gradient: Gradient | None = None
     center: list[float]
     zoom: int
     source: str
@@ -272,6 +283,99 @@ def _compute_change() -> dict[str, Any]:
     }
 
 
+# ---------------------------------------------------------------------------
+# Additional Data-mode layers: surface temperature + air quality.
+# Both come from the SAME OpenLandMap STAC + TiTiler pipeline as land cover, so
+# they slot in cleanly — only the styling differs (continuous ramp, not classes).
+# ---------------------------------------------------------------------------
+STAC_BASE = "https://s3.eu-central-1.wasabisys.com/stac/openlandmap"
+
+# Turbo ramp stops (same palette OpenLandMap ships in the LST/NO2 SLDs).
+TURBO = ["#30123b", "#4777ef", "#1bd0d5", "#64fd6a", "#d3e835", "#fe992c", "#d93807", "#7a0403"]
+
+
+@lru_cache(maxsize=64)
+def _asset_href(collection: str, item: str, key: str) -> str:
+    """Resolve a COG href from a STAC item (cached — filename versions vary)."""
+    data = _fetch_json(f"{STAC_BASE}/{collection}/{item}/{item}.json")
+    href = data.get("assets", {}).get(key, {}).get("href")
+    if not href:
+        raise RuntimeError(f"Asset '{key}' missing in item '{item}'.")
+    return href
+
+
+def _titiler_continuous(href: str, rescale: str, colormap: str = "turbo") -> str:
+    """TiTiler tile URL for a single-band continuous COG with a colour ramp.
+
+    Cubic resampling smooths the coarse 1-2 km pixels into a legible continuous
+    field (valid for continuous data — never use this on categorical classes).
+    """
+    url = f"https://titiler.xyz/cog/tiles/WebMercatorQuad/{{z}}/{{x}}/{{y}}.png?url={quote_plus(href)}"
+    return url + f"&rescale={rescale}&colormap_name={colormap}&resampling=cubic"
+
+
+def _config_lst() -> MapConfig:
+    """Daytime land surface temperature, MODIS MOD11A2 annual, 2000 vs 2021."""
+    coll = "lst_mod11a2.daytime.annual"
+    key = "lst_mod11a2.daytime_p50_1km_s"
+    left = _asset_href(coll, f"{coll}_20000101_20001231", key)
+    right = _asset_href(coll, f"{coll}_20210101_20211231", key)
+    # OpenLandMap LST DN -> degC = DN * 0.02 - 273.15. Rescale 10..32 C for local
+    # urban-heat contrast: DN = (C + 273.15) / 0.02.
+    rescale = "14158,15258"
+    return MapConfig(
+        dataset_id="lst",
+        dataset_label="Daytime surface temperature — El Prat / Llobregat delta",
+        left=LayerConfig(year=2000, tiles=_titiler_continuous(left, rescale), label="2000"),
+        right=LayerConfig(year=2021, tiles=_titiler_continuous(right, rescale), label="2021"),
+        legend=[],
+        legend_kind="gradient",
+        gradient=Gradient(colors=TURBO, min_label="10 °C", max_label="32 °C", unit="Daytime land surface temperature"),
+        center=MAP_CENTER,
+        zoom=DEFAULT_ZOOM,
+        source="MODIS MOD11A2 annual day-time LST (OpenLandMap), median",
+    )
+
+
+def _config_no2() -> MapConfig:
+    """Tropospheric NO2 air pollution, Sentinel-5P monthly, Nov 2018 vs Nov 2022."""
+    coll = "no2_s5p.l3.trop.tmwm"
+    key = "no2_s5p.l3.trop.tmwm_p50_2km_a"
+    left = _asset_href(coll, f"{coll}_20181101_20181130", key)
+    right = _asset_href(coll, f"{coll}_20221101_20221130", key)
+    # NO2 density DN ~600-1180 over the metro; rescale for local contrast.
+    rescale = "400,1200"
+    return MapConfig(
+        dataset_id="no2",
+        dataset_label="Air quality — tropospheric NO₂ over El Prat / Llobregat delta",
+        left=LayerConfig(year=2018, tiles=_titiler_continuous(left, rescale), label="Nov 2018"),
+        right=LayerConfig(year=2022, tiles=_titiler_continuous(right, rescale), label="Nov 2022"),
+        legend=[],
+        legend_kind="gradient",
+        gradient=Gradient(
+            colors=TURBO,
+            min_label="Cleaner",
+            max_label="More polluted",
+            unit="Tropospheric NO₂ density (Sentinel-5P, relative)",
+        ),
+        center=MAP_CENTER,
+        zoom=DEFAULT_ZOOM,
+        source="Sentinel-5P TROPOMI tropospheric NO₂, monthly median (OpenLandMap)",
+    )
+
+
+DATASETS = [
+    {"id": "landcover", "label": "Land cover", "subtitle": "GLC_FCS30D · 1985 ↔ 2022"},
+    {"id": "lst", "label": "Surface temp", "subtitle": "MODIS LST · 2000 ↔ 2021"},
+    {"id": "no2", "label": "Air quality", "subtitle": "Sentinel-5P NO₂ · 2018 ↔ 2022"},
+]
+
+
+@app.get("/api/datasets")
+def list_datasets() -> JSONResponse:
+    return JSONResponse(DATASETS)
+
+
 @app.get("/api/change")
 def get_change() -> JSONResponse:
     """Real 1985->2022 ecosystem-to-built-up change over the delta."""
@@ -287,9 +391,13 @@ def health() -> JSONResponse:
 
 
 @app.get("/api/map-config", response_model=MapConfig)
-def get_map_config() -> MapConfig:
+def get_map_config(dataset: str = "landcover") -> MapConfig:
     try:
-        return _build_map_config()
+        if dataset == "lst":
+            return _config_lst()
+        if dataset == "no2":
+            return _config_no2()
+        return _build_map_config()  # landcover (default)
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Failed to build map config: {exc}") from exc
 
