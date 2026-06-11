@@ -33,6 +33,7 @@ COLLECTION_URL = "https://s3.eu-central-1.wasabisys.com/stac/openlandmap/lc_glc.
 ASSET_KEY = "lc_glc.fcs30d_c_30m_s"
 YEAR_LEFT = 1985
 YEAR_RIGHT = 2022
+MILESTONE_YEARS = [1965, 1985, 2005, 2025]
 MAP_CENTER = [41.2974, 2.0833]
 DEFAULT_ZOOM = 12
 
@@ -168,28 +169,37 @@ def _build_tile_url(asset_href: str, colormap: dict[str, str]) -> str:
 
 
 @lru_cache(maxsize=1)
-def _build_map_config() -> MapConfig:
-    items_by_year = _load_items_by_year()
-    missing_years = [year for year in (YEAR_LEFT, YEAR_RIGHT) if year not in items_by_year]
-    if missing_years:
-        raise RuntimeError(f"Missing required year(s): {', '.join(str(y) for y in missing_years)}")
+def _load_items_by_year_cached() -> dict[int, dict[str, Any]]:
+    return _load_items_by_year()
 
-    left_item = items_by_year[YEAR_LEFT]
-    right_item = items_by_year[YEAR_RIGHT]
+
+def _snap_to_available_year(requested: int, available: list[int]) -> int:
+    """Return the closest available year to the requested one."""
+    return min(available, key=lambda y: abs(y - requested))
+
+
+@lru_cache(maxsize=20)
+def _build_map_config(year_left: int = YEAR_LEFT) -> MapConfig:
+    items_by_year = _load_items_by_year_cached()
+    available = sorted(items_by_year.keys())
+    actual_left = _snap_to_available_year(year_left, available)
+    actual_right = _snap_to_available_year(YEAR_RIGHT, available)
+
+    left_item = items_by_year[actual_left]
+    right_item = items_by_year[actual_right]
 
     left_asset = left_item.get("assets", {}).get(ASSET_KEY, {}).get("href")
     right_asset = right_item.get("assets", {}).get(ASSET_KEY, {}).get("href")
     if not left_asset or not right_asset:
         raise RuntimeError(f"Asset '{ASSET_KEY}' missing in selected years.")
 
-    # Render with a simplified group palette (clean, ~8 colours) instead of the
-    # full ~25-class GLC_FCS30D rainbow.
     colormap = _simplified_colormap()
+    label = f"Land cover, {actual_left} vs {actual_right} — El Prat / Llobregat delta"
     return MapConfig(
         dataset_id="glc_fcs30d",
-        dataset_label=f"Land cover, {YEAR_LEFT} vs {YEAR_RIGHT} — El Prat / Llobregat delta",
-        left=LayerConfig(year=YEAR_LEFT, tiles=_build_tile_url(left_asset, colormap)),
-        right=LayerConfig(year=YEAR_RIGHT, tiles=_build_tile_url(right_asset, colormap)),
+        dataset_label=label,
+        left=LayerConfig(year=actual_left, tiles=_build_tile_url(left_asset, colormap)),
+        right=LayerConfig(year=actual_right, tiles=_build_tile_url(right_asset, colormap)),
         legend=_simplified_legend(),
         center=MAP_CENTER,
         zoom=DEFAULT_ZOOM,
@@ -291,7 +301,8 @@ def _compute_change() -> dict[str, Any]:
 STAC_BASE = "https://s3.eu-central-1.wasabisys.com/stac/openlandmap"
 
 # Turbo ramp stops (same palette OpenLandMap ships in the LST/NO2 SLDs).
-TURBO = ["#30123b", "#4777ef", "#1bd0d5", "#64fd6a", "#d3e835", "#fe992c", "#d93807", "#7a0403"]
+RDYLBU_R = ["#313695", "#74add1", "#e0f3f8", "#ffffbf", "#fdae61", "#f46d43", "#a50026"]
+RDYLGN_R = ["#006837", "#66bd63", "#d9ef8b", "#fee08b", "#fdae61", "#f46d43", "#a50026"]
 
 
 @lru_cache(maxsize=64)
@@ -304,14 +315,10 @@ def _asset_href(collection: str, item: str, key: str) -> str:
     return href
 
 
-def _titiler_continuous(href: str, rescale: str, colormap: str = "turbo") -> str:
-    """TiTiler tile URL for a single-band continuous COG with a colour ramp.
-
-    Cubic resampling smooths the coarse 1-2 km pixels into a legible continuous
-    field (valid for continuous data — never use this on categorical classes).
-    """
+def _titiler_continuous(href: str, rescale: str, colormap: str = "rdylbu_r", resampling: str = "cubic_spline") -> str:
+    """TiTiler tile URL for a single-band continuous COG with a colour ramp."""
     url = f"https://titiler.xyz/cog/tiles/WebMercatorQuad/{{z}}/{{x}}/{{y}}.png?url={quote_plus(href)}"
-    return url + f"&rescale={rescale}&colormap_name={colormap}&resampling=cubic"
+    return url + f"&rescale={rescale}&colormap_name={colormap}&resampling={resampling}"
 
 
 def _config_lst() -> MapConfig:
@@ -320,17 +327,17 @@ def _config_lst() -> MapConfig:
     key = "lst_mod11a2.daytime_p50_1km_s"
     left = _asset_href(coll, f"{coll}_20000101_20001231", key)
     right = _asset_href(coll, f"{coll}_20210101_20211231", key)
-    # OpenLandMap LST DN -> degC = DN * 0.02 - 273.15. Rescale 10..32 C for local
-    # urban-heat contrast: DN = (C + 273.15) / 0.02.
-    rescale = "14158,15258"
+    # Rescale 16-34°C: anchors sea/wetland in deep blue, pushes tarmac to saturated red.
+    # DN = (C + 273.15) / 0.02
+    rescale = "14458,15358"
     return MapConfig(
         dataset_id="lst",
         dataset_label="Daytime surface temperature — El Prat / Llobregat delta",
-        left=LayerConfig(year=2000, tiles=_titiler_continuous(left, rescale), label="2000"),
-        right=LayerConfig(year=2021, tiles=_titiler_continuous(right, rescale), label="2021"),
+        left=LayerConfig(year=2000, tiles=_titiler_continuous(left, rescale, colormap="rdylbu_r"), label="2000"),
+        right=LayerConfig(year=2021, tiles=_titiler_continuous(right, rescale, colormap="rdylbu_r"), label="2021"),
         legend=[],
         legend_kind="gradient",
-        gradient=Gradient(colors=TURBO, min_label="10 °C", max_label="32 °C", unit="Daytime land surface temperature"),
+        gradient=Gradient(colors=RDYLBU_R, min_label="16 °C (cool / wetland)", max_label="34 °C (hot / tarmac)", unit="Daytime land surface temperature"),
         center=MAP_CENTER,
         zoom=DEFAULT_ZOOM,
         source="MODIS MOD11A2 annual day-time LST (OpenLandMap), median",
@@ -343,19 +350,19 @@ def _config_no2() -> MapConfig:
     key = "no2_s5p.l3.trop.tmwm_p50_2km_a"
     left = _asset_href(coll, f"{coll}_20181101_20181130", key)
     right = _asset_href(coll, f"{coll}_20221101_20221130", key)
-    # NO2 density DN ~600-1180 over the metro; rescale for local contrast.
-    rescale = "400,1200"
+    # Tighter rescale: wetland clean air (~600) anchors green, airport core (~1150) saturates red.
+    rescale = "550,1150"
     return MapConfig(
         dataset_id="no2",
         dataset_label="Air quality — tropospheric NO₂ over El Prat / Llobregat delta",
-        left=LayerConfig(year=2018, tiles=_titiler_continuous(left, rescale), label="Nov 2018"),
-        right=LayerConfig(year=2022, tiles=_titiler_continuous(right, rescale), label="Nov 2022"),
+        left=LayerConfig(year=2018, tiles=_titiler_continuous(left, rescale, colormap="rdylgn_r"), label="Nov 2018"),
+        right=LayerConfig(year=2022, tiles=_titiler_continuous(right, rescale, colormap="rdylgn_r"), label="Nov 2022"),
         legend=[],
         legend_kind="gradient",
         gradient=Gradient(
-            colors=TURBO,
-            min_label="Cleaner",
-            max_label="More polluted",
+            colors=RDYLGN_R,
+            min_label="Clean (wetland)",
+            max_label="Polluted (airport core)",
             unit="Tropospheric NO₂ density (Sentinel-5P, relative)",
         ),
         center=MAP_CENTER,
@@ -368,6 +375,7 @@ DATASETS = [
     {"id": "landcover", "label": "Land cover", "subtitle": "GLC_FCS30D · 1985 ↔ 2022"},
     {"id": "lst", "label": "Surface temp", "subtitle": "MODIS LST · 2000 ↔ 2021"},
     {"id": "no2", "label": "Air quality", "subtitle": "Sentinel-5P NO₂ · 2018 ↔ 2022"},
+    {"id": "life", "label": "Life", "subtitle": "Birds · flora · crops", "disabled": True},
 ]
 
 
@@ -390,14 +398,19 @@ def health() -> JSONResponse:
     return JSONResponse({"status": "ok"})
 
 
+@app.get("/api/milestones")
+def get_milestones() -> JSONResponse:
+    return JSONResponse({"years": MILESTONE_YEARS})
+
+
 @app.get("/api/map-config", response_model=MapConfig)
-def get_map_config(dataset: str = "landcover") -> MapConfig:
+def get_map_config(dataset: str = "landcover", year_left: int = YEAR_LEFT) -> MapConfig:
     try:
         if dataset == "lst":
             return _config_lst()
         if dataset == "no2":
             return _config_no2()
-        return _build_map_config()  # landcover (default)
+        return _build_map_config(year_left)
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Failed to build map config: {exc}") from exc
 

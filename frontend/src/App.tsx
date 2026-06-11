@@ -1,9 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import 'leaflet/dist/leaflet.css'
-import IdeologyPanel from './components/IdeologyPanel'
 import LossLayer from './components/LossLayer'
 import MorphLayer from './components/MorphLayer'
+
+const MILESTONE_YEARS = [1965, 1985, 2005, 2025]
+
+// URL of the kiosk FastAPI server (ground-beneath-growth).
+// Override with VITE_KIOSK_URL env var for multi-machine setups.
+const KIOSK_URL = (import.meta.env.VITE_KIOSK_URL as string | undefined) ?? 'http://localhost:8000'
+
+// Which dataset + year to show when a given kiosk scenario leads.
+const SCENARIO_MAP: Record<string, { dataset: string; year: number }> = {
+  expand:  { dataset: 'landcover', year: 2025 }, // expansion footprint
+  balance: { dataset: 'no2',       year: 2025 }, // pollution tradeoff
+  protect: { dataset: 'lst',       year: 2025 }, // heat benefit of protecting wetlands
+}
 
 const L = (window as any).L
 
@@ -39,7 +51,7 @@ type MapConfig = {
   source: string
 }
 
-type DatasetMeta = { id: string; label: string; subtitle: string }
+type DatasetMeta = { id: string; label: string; subtitle: string; disabled?: boolean }
 
 export default function App() {
   const mapRef = useRef<any>(null)
@@ -52,10 +64,57 @@ export default function App() {
   const [config, setConfig] = useState<MapConfig | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [opacity, setOpacity] = useState(1)
+  const [opacity] = useState(1)
   const [storyMode, setStoryMode] = useState(false)
+  const [yearLeft, setYearLeft] = useState(1985)
   const [mapInstance, setMapInstance] = useState<any>(null)
   const [hoverLegend, setHoverLegend] = useState<{ item: LegendItem; x: number; y: number } | null>(null)
+  const [kioskOnline, setKioskOnline] = useState(false)
+
+  // SSE bridge: listen to the kiosk app's vote/scenario events and
+  // reactively switch our dataset + year to match the leading scenario.
+  useEffect(() => {
+    const es = new EventSource(`${KIOSK_URL}/events`)
+
+    const applyScenario = (scenario: string) => {
+      const mapped = SCENARIO_MAP[scenario]
+      if (mapped) {
+        setDataset(mapped.dataset)
+        setYearLeft(mapped.year)
+      }
+    }
+
+    const handleData = (raw: string) => {
+      try {
+        const msg = JSON.parse(raw)
+        // Named event type embedded in data (common FastAPI SSE pattern)
+        if (msg.type === 'tally_update' || msg.tally) {
+          const expand  = msg.expand  ?? msg.tally?.expand  ?? 0
+          const balance = msg.balance ?? msg.tally?.balance ?? 0
+          const protect = msg.protect ?? msg.tally?.protect ?? 0
+          const leader =
+            expand > balance && expand > protect ? 'expand' :
+            protect > balance && protect > expand ? 'protect' :
+            balance > 0 ? 'balance' : null
+          if (leader) applyScenario(leader)
+        }
+        if (msg.type === 'scenario_change' || msg.scenario) {
+          applyScenario(msg.scenario ?? msg.type)
+        }
+      } catch {
+        // non-JSON ping — ignore
+      }
+    }
+
+    es.onopen = () => setKioskOnline(true)
+    es.onerror = () => setKioskOnline(false)
+    es.onmessage = (e) => handleData(e.data)
+    // also catch named events
+    es.addEventListener('tally_update',   (e: any) => handleData(e.data))
+    es.addEventListener('scenario_change',(e: any) => handleData(e.data))
+
+    return () => { es.close(); setKioskOnline(false) }
+  }, []) // mount-once; setDataset / setYearLeft are stable React setters
 
   useEffect(() => {
     let root = document.getElementById('ui-root')
@@ -79,7 +138,7 @@ export default function App() {
   useEffect(() => {
     setLoading(true)
     setError(null)
-    fetch(`/api/map-config?dataset=${dataset}`)
+    fetch(`/api/map-config?dataset=${dataset}&year_left=${yearLeft}`)
       .then(async (response) => {
         const payload = await response.json()
         if (!response.ok || payload?.detail) {
@@ -89,7 +148,7 @@ export default function App() {
       })
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false))
-  }, [dataset])
+  }, [dataset, yearLeft])
 
   // Create the Leaflet map exactly once (after the first config arrives).
   const hasConfig = !!config
@@ -145,9 +204,7 @@ export default function App() {
       rightLayerRef.current = null
     }
     const eff = storyMode ? 0 : opacity
-    // Continuous datasets (temp, pollution) are coarse 1-2 km rasters — smooth the
-    // hard pixel blocks into a legible field. Categorical land cover stays crisp.
-    const cls = config.legend_kind === 'gradient' ? 'smooth-raster' : ''
+    const cls = dataset === 'lst' ? 'smooth-raster-lst' : dataset === 'no2' ? 'smooth-raster-no2' : ''
     const left = L.tileLayer(config.left.tiles, { opacity: eff, maxZoom: 24, className: cls, attribution: 'OpenLandMap' }).addTo(map)
     const right = L.tileLayer(config.right.tiles, { opacity: eff, maxZoom: 24, className: cls, attribution: 'OpenLandMap' }).addTo(map)
     leftLayerRef.current = left
@@ -226,35 +283,36 @@ export default function App() {
               <button
                 key={d.id}
                 type="button"
-                className={`ds-btn ${dataset === d.id ? 'active' : ''}`}
-                onClick={() => setDataset(d.id)}
-                title={d.subtitle}
+                className={`ds-btn ${dataset === d.id ? 'active' : ''} ${d.disabled ? 'ds-btn-disabled' : ''}`}
+                onClick={() => !d.disabled && setDataset(d.id)}
+                disabled={d.disabled}
+                title={d.disabled ? 'Coming soon' : d.subtitle}
               >
                 <span className="ds-label">{d.label}</span>
-                <span className="ds-sub">{d.subtitle}</span>
+                <span className="ds-sub">{d.disabled ? 'Coming soon' : d.subtitle}</span>
               </button>
             ))}
           </div>
         )}
 
         <div className="panel shell" style={storyMode ? { display: 'none' } : undefined}>
-          <p className="eyebrow">AI4ALL Participatory Motivation</p>
-          <h1 className="title">{config.dataset_label}</h1>
-          <p className="subtitle">
-            Drag the vertical slider to compare {leftLabel} and {rightLabel} side by side.
+          <p className="eyebrow">
+            El Prat / Delta del Llobregat
+            <span className={`kiosk-dot ${kioskOnline ? 'online' : 'offline'}`} title={kioskOnline ? 'Kiosk connected' : 'Kiosk offline'} />
           </p>
-          <div className="opacity-control">
-            <label htmlFor="opacity-range">Layer opacity</label>
-            <input
-              id="opacity-range"
-              type="range"
-              min={0}
-              max={1}
-              step={0.05}
-              value={opacity}
-              onChange={(event) => setOpacity(Number(event.target.value))}
-            />
-            <span>{opacity.toFixed(2)}</span>
+          <h1 className="title">{config.dataset_label}</h1>
+          <p className="subtitle">Select a year to compare against {rightLabel}</p>
+          <div className="milestone-btns">
+            {MILESTONE_YEARS.map((yr) => (
+              <button
+                key={yr}
+                type="button"
+                className={`milestone-btn ${yearLeft === yr ? 'active' : ''}`}
+                onClick={() => setYearLeft(yr)}
+              >
+                {yr}
+              </button>
+            ))}
           </div>
           <p className="source">Source: {config.source}</p>
         </div>
@@ -309,7 +367,6 @@ export default function App() {
         : <LossLayer map={mapInstance} hidden={storyMode || dataset !== 'landcover'} />}
       {uiRoot ? createPortal(<MorphLayer map={mapInstance} active={storyMode} />, uiRoot) : <MorphLayer map={mapInstance} active={storyMode} />}
       {uiRoot ? createPortal(panels(), uiRoot) : panels()}
-      {!storyMode && (uiRoot ? createPortal(<IdeologyPanel />, uiRoot) : <IdeologyPanel />)}
 
       {uiRoot && hoverLegend
         ? createPortal(

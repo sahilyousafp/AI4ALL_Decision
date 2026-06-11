@@ -18,3 +18,8 @@ dist/
 
 # Handoff notes (session-local)
 HANDOFF.md
+
+# Session-local artifacts
+*.log
+.env.local
+app-*.png
