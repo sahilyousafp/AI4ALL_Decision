@@ -33,6 +33,7 @@ COLLECTION_URL = "https://s3.eu-central-1.wasabisys.com/stac/openlandmap/lc_glc.
 ASSET_KEY = "lc_glc.fcs30d_c_30m_s"
 YEAR_LEFT = 1985
 YEAR_RIGHT = 2022
+MILESTONE_YEARS = [1965, 1985, 2005, 2025]
 MAP_CENTER = [41.2974, 2.0833]
 DEFAULT_ZOOM = 12
 
@@ -90,6 +91,15 @@ class LegendItem(BaseModel):
 class LayerConfig(BaseModel):
     year: int
     tiles: str
+    label: str | None = None
+
+
+class Gradient(BaseModel):
+    """Continuous colour ramp for non-class datasets (temperature, pollution)."""
+    colors: list[str]
+    min_label: str
+    max_label: str
+    unit: str
 
 
 class MapConfig(BaseModel):
@@ -98,6 +108,8 @@ class MapConfig(BaseModel):
     left: LayerConfig
     right: LayerConfig
     legend: list[LegendItem]
+    legend_kind: str = "classes"  # "classes" | "gradient"
+    gradient: Gradient | None = None
     center: list[float]
     zoom: int
     source: str
@@ -157,28 +169,37 @@ def _build_tile_url(asset_href: str, colormap: dict[str, str]) -> str:
 
 
 @lru_cache(maxsize=1)
-def _build_map_config() -> MapConfig:
-    items_by_year = _load_items_by_year()
-    missing_years = [year for year in (YEAR_LEFT, YEAR_RIGHT) if year not in items_by_year]
-    if missing_years:
-        raise RuntimeError(f"Missing required year(s): {', '.join(str(y) for y in missing_years)}")
+def _load_items_by_year_cached() -> dict[int, dict[str, Any]]:
+    return _load_items_by_year()
 
-    left_item = items_by_year[YEAR_LEFT]
-    right_item = items_by_year[YEAR_RIGHT]
+
+def _snap_to_available_year(requested: int, available: list[int]) -> int:
+    """Return the closest available year to the requested one."""
+    return min(available, key=lambda y: abs(y - requested))
+
+
+@lru_cache(maxsize=20)
+def _build_map_config(year_left: int = YEAR_LEFT) -> MapConfig:
+    items_by_year = _load_items_by_year_cached()
+    available = sorted(items_by_year.keys())
+    actual_left = _snap_to_available_year(year_left, available)
+    actual_right = _snap_to_available_year(YEAR_RIGHT, available)
+
+    left_item = items_by_year[actual_left]
+    right_item = items_by_year[actual_right]
 
     left_asset = left_item.get("assets", {}).get(ASSET_KEY, {}).get("href")
     right_asset = right_item.get("assets", {}).get(ASSET_KEY, {}).get("href")
     if not left_asset or not right_asset:
         raise RuntimeError(f"Asset '{ASSET_KEY}' missing in selected years.")
 
-    # Render with a simplified group palette (clean, ~8 colours) instead of the
-    # full ~25-class GLC_FCS30D rainbow.
     colormap = _simplified_colormap()
+    label = f"Land cover, {actual_left} vs {actual_right} — El Prat / Llobregat delta"
     return MapConfig(
         dataset_id="glc_fcs30d",
-        dataset_label=f"Land cover, {YEAR_LEFT} vs {YEAR_RIGHT} — El Prat / Llobregat delta",
-        left=LayerConfig(year=YEAR_LEFT, tiles=_build_tile_url(left_asset, colormap)),
-        right=LayerConfig(year=YEAR_RIGHT, tiles=_build_tile_url(right_asset, colormap)),
+        dataset_label=label,
+        left=LayerConfig(year=actual_left, tiles=_build_tile_url(left_asset, colormap)),
+        right=LayerConfig(year=actual_right, tiles=_build_tile_url(right_asset, colormap)),
         legend=_simplified_legend(),
         center=MAP_CENTER,
         zoom=DEFAULT_ZOOM,
@@ -272,6 +293,97 @@ def _compute_change() -> dict[str, Any]:
     }
 
 
+# ---------------------------------------------------------------------------
+# Additional Data-mode layers: surface temperature + air quality.
+# Both come from the SAME OpenLandMap STAC + TiTiler pipeline as land cover, so
+# they slot in cleanly — only the styling differs (continuous ramp, not classes).
+# ---------------------------------------------------------------------------
+STAC_BASE = "https://s3.eu-central-1.wasabisys.com/stac/openlandmap"
+
+# Turbo ramp stops (same palette OpenLandMap ships in the LST/NO2 SLDs).
+RDYLBU_R = ["#313695", "#74add1", "#e0f3f8", "#ffffbf", "#fdae61", "#f46d43", "#a50026"]
+RDYLGN_R = ["#006837", "#66bd63", "#d9ef8b", "#fee08b", "#fdae61", "#f46d43", "#a50026"]
+
+
+@lru_cache(maxsize=64)
+def _asset_href(collection: str, item: str, key: str) -> str:
+    """Resolve a COG href from a STAC item (cached — filename versions vary)."""
+    data = _fetch_json(f"{STAC_BASE}/{collection}/{item}/{item}.json")
+    href = data.get("assets", {}).get(key, {}).get("href")
+    if not href:
+        raise RuntimeError(f"Asset '{key}' missing in item '{item}'.")
+    return href
+
+
+def _titiler_continuous(href: str, rescale: str, colormap: str = "rdylbu_r", resampling: str = "cubic_spline") -> str:
+    """TiTiler tile URL for a single-band continuous COG with a colour ramp."""
+    url = f"https://titiler.xyz/cog/tiles/WebMercatorQuad/{{z}}/{{x}}/{{y}}.png?url={quote_plus(href)}"
+    return url + f"&rescale={rescale}&colormap_name={colormap}&resampling={resampling}"
+
+
+def _config_lst() -> MapConfig:
+    """Daytime land surface temperature, MODIS MOD11A2 annual, 2000 vs 2021."""
+    coll = "lst_mod11a2.daytime.annual"
+    key = "lst_mod11a2.daytime_p50_1km_s"
+    left = _asset_href(coll, f"{coll}_20000101_20001231", key)
+    right = _asset_href(coll, f"{coll}_20210101_20211231", key)
+    # Rescale 16-34°C: anchors sea/wetland in deep blue, pushes tarmac to saturated red.
+    # DN = (C + 273.15) / 0.02
+    rescale = "14458,15358"
+    return MapConfig(
+        dataset_id="lst",
+        dataset_label="Daytime surface temperature — El Prat / Llobregat delta",
+        left=LayerConfig(year=2000, tiles=_titiler_continuous(left, rescale, colormap="rdylbu_r"), label="2000"),
+        right=LayerConfig(year=2021, tiles=_titiler_continuous(right, rescale, colormap="rdylbu_r"), label="2021"),
+        legend=[],
+        legend_kind="gradient",
+        gradient=Gradient(colors=RDYLBU_R, min_label="16 °C (cool / wetland)", max_label="34 °C (hot / tarmac)", unit="Daytime land surface temperature"),
+        center=MAP_CENTER,
+        zoom=DEFAULT_ZOOM,
+        source="MODIS MOD11A2 annual day-time LST (OpenLandMap), median",
+    )
+
+
+def _config_no2() -> MapConfig:
+    """Tropospheric NO2 air pollution, Sentinel-5P monthly, Nov 2018 vs Nov 2022."""
+    coll = "no2_s5p.l3.trop.tmwm"
+    key = "no2_s5p.l3.trop.tmwm_p50_2km_a"
+    left = _asset_href(coll, f"{coll}_20181101_20181130", key)
+    right = _asset_href(coll, f"{coll}_20221101_20221130", key)
+    # Tighter rescale: wetland clean air (~600) anchors green, airport core (~1150) saturates red.
+    rescale = "550,1150"
+    return MapConfig(
+        dataset_id="no2",
+        dataset_label="Air quality — tropospheric NO₂ over El Prat / Llobregat delta",
+        left=LayerConfig(year=2018, tiles=_titiler_continuous(left, rescale, colormap="rdylgn_r"), label="Nov 2018"),
+        right=LayerConfig(year=2022, tiles=_titiler_continuous(right, rescale, colormap="rdylgn_r"), label="Nov 2022"),
+        legend=[],
+        legend_kind="gradient",
+        gradient=Gradient(
+            colors=RDYLGN_R,
+            min_label="Clean (wetland)",
+            max_label="Polluted (airport core)",
+            unit="Tropospheric NO₂ density (Sentinel-5P, relative)",
+        ),
+        center=MAP_CENTER,
+        zoom=DEFAULT_ZOOM,
+        source="Sentinel-5P TROPOMI tropospheric NO₂, monthly median (OpenLandMap)",
+    )
+
+
+DATASETS = [
+    {"id": "landcover", "label": "Land cover", "subtitle": "GLC_FCS30D · 1985 ↔ 2022"},
+    {"id": "lst", "label": "Surface temp", "subtitle": "MODIS LST · 2000 ↔ 2021"},
+    {"id": "no2", "label": "Air quality", "subtitle": "Sentinel-5P NO₂ · 2018 ↔ 2022"},
+    {"id": "life", "label": "Life", "subtitle": "Birds · flora · crops", "disabled": True},
+]
+
+
+@app.get("/api/datasets")
+def list_datasets() -> JSONResponse:
+    return JSONResponse(DATASETS)
+
+
 @app.get("/api/change")
 def get_change() -> JSONResponse:
     """Real 1985->2022 ecosystem-to-built-up change over the delta."""
@@ -286,10 +398,19 @@ def health() -> JSONResponse:
     return JSONResponse({"status": "ok"})
 
 
+@app.get("/api/milestones")
+def get_milestones() -> JSONResponse:
+    return JSONResponse({"years": MILESTONE_YEARS})
+
+
 @app.get("/api/map-config", response_model=MapConfig)
-def get_map_config() -> MapConfig:
+def get_map_config(dataset: str = "landcover", year_left: int = YEAR_LEFT) -> MapConfig:
     try:
-        return _build_map_config()
+        if dataset == "lst":
+            return _config_lst()
+        if dataset == "no2":
+            return _config_no2()
+        return _build_map_config(year_left)
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Failed to build map config: {exc}") from exc
 
@@ -339,4 +460,5 @@ else:
 
 
 if __name__ == "__main__":
-    uvicorn.run("backend.server:app", host="0.0.0.0", port=8000, reload=True)
+    # Port 8001: the voting kiosk (kiosk/kiosk.py) owns 8000.
+    uvicorn.run("backend.server:app", host="0.0.0.0", port=8001, reload=True)

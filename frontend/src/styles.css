@@ -199,6 +199,103 @@ body,
   box-shadow: 0 6px 16px rgba(18, 30, 52, 0.22);
 }
 
+/* cinematic real-aerial frames: feather the rectangle edges so the framed delta
+   melts into the surrounding live satellite instead of showing a hard seam */
+.cine-frame {
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 7%, #000 93%, transparent 100%),
+    linear-gradient(to bottom, transparent 0, #000 7%, #000 93%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(to right, transparent 0, #000 7%, #000 93%, transparent 100%),
+    linear-gradient(to bottom, transparent 0, #000 7%, #000 93%, transparent 100%);
+  mask-composite: intersect;
+}
+
+/* ---- Dataset switcher (Data mode): land cover / surface temp / air quality ---- */
+.dataset-switch {
+  position: fixed;
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1390;
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(16px) saturate(135%);
+  -webkit-backdrop-filter: blur(16px) saturate(135%);
+  border: 1px solid var(--apple-border);
+  box-shadow: var(--apple-shadow);
+}
+.ds-btn {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 14px;
+  border-radius: 12px;
+  text-align: center;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+.ds-btn .ds-label {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--apple-text);
+}
+.ds-btn .ds-sub {
+  font-size: 0.62rem;
+  font-weight: 500;
+  color: var(--apple-muted);
+  letter-spacing: 0.01em;
+}
+.ds-btn:hover {
+  background: rgba(16, 18, 20, 0.06);
+}
+.ds-btn.active {
+  background: #101214;
+}
+.ds-btn.active .ds-label {
+  color: #fff;
+}
+.ds-btn.active .ds-sub {
+  color: rgba(255, 255, 255, 0.7);
+}
+.ds-btn.ds-btn-disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+.ds-btn.ds-btn-disabled:hover {
+  background: transparent;
+}
+
+/* Temperature: moderate blur — turns 1km MODIS pixels into smooth thermal field */
+.smooth-raster-lst {
+  filter: blur(6px) saturate(1.35) contrast(1.12);
+  opacity: 0.8;
+}
+
+/* NO2: heavy blur — 2km Sentinel-5P pixels become a smooth atmospheric haze plume */
+.smooth-raster-no2 {
+  filter: blur(14px) saturate(1.5) contrast(1.15);
+  opacity: 0.7;
+}
+
+/* continuous colour-ramp legend for temperature / pollution */
+.gradient-bar {
+  height: 14px;
+  border-radius: 7px;
+  margin: 4px 0 6px;
+  border: 1px solid var(--apple-border);
+}
+.gradient-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.74rem;
+  font-weight: 560;
+  color: var(--apple-muted);
+}
+
 /* ---- Story mode: real IGN aerial morph, blended on the live map ---- */
 /* transparent overlay — the Leaflet map shows through and IS the visual */
 .morph-ui {
@@ -591,6 +688,18 @@ body,
   padding: 20px 22px 18px;
 }
 
+.kiosk-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-left: 7px;
+  vertical-align: middle;
+  transition: background 0.4s ease;
+}
+.kiosk-dot.online  { background: #22c55e; }
+.kiosk-dot.offline { background: #d1d5db; }
+
 .eyebrow {
   margin: 0 0 6px;
   font-size: 12px;
@@ -620,30 +729,36 @@ body,
   color: var(--apple-muted);
 }
 
-.opacity-control {
+.milestone-btns {
+  display: flex;
+  gap: 8px;
   margin-top: 14px;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 12px;
-  align-items: center;
+  flex-wrap: wrap;
 }
 
-.opacity-control label {
-  font-size: 0.86rem;
-  color: #222;
-  font-weight: 560;
+.milestone-btn {
+  flex: 1;
+  min-width: 60px;
+  padding: 10px 6px;
+  border: 1.5px solid rgba(0, 0, 0, 0.18);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.7);
+  font-size: 1rem;
+  font-weight: 600;
+  color: #333;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 
-.opacity-control input[type='range'] {
-  width: 100%;
-  accent-color: #111;
+.milestone-btn:hover {
+  background: rgba(0, 0, 0, 0.07);
+  border-color: rgba(0, 0, 0, 0.35);
 }
 
-.opacity-control span {
-  min-width: 32px;
-  font-variant-numeric: tabular-nums;
-  color: var(--apple-muted);
-  font-size: 0.84rem;
+.milestone-btn.active {
+  background: #111;
+  border-color: #111;
+  color: #fff;
 }
 
 .year-chip {
