@@ -460,4 +460,5 @@ else:
 
 
 if __name__ == "__main__":
-    uvicorn.run("backend.server:app", host="0.0.0.0", port=8000, reload=True)
+    # Port 8001: the voting kiosk (kiosk/kiosk.py) owns 8000.
+    uvicorn.run("backend.server:app", host="0.0.0.0", port=8001, reload=True)
